@@ -1,91 +1,117 @@
 @model KasaVm
 @{
-    ViewData["Title"] = "Genel Kasa";
+    // Görünüm referans musteritakip.html → #panelKasa ile aynı yapıdadır.
+    ViewData["Title"] = "Kasa";
+    ViewData["ContentClass"] = "kasa-mode";
     var t = Model.Totals;
-    var here = Context.Request.Path + Context.Request.QueryString;
+    // HTML'de kasa listesi en son eklenen üstte sıralanır; yalnızca fiyatı olan siparişler listelenir
+    var items = Model.Items.Where(m => m.Type is MovementType.Payment or MovementType.Expense || m.Rec?.Price != null)
+                           .OrderByDescending(m => m.CreatedAt).ToList();
 }
-<div class="seg-tabs">
-    <a class="on" asp-controller="Kasa" asp-action="Index">Hareketler</a>
-    <a asp-controller="Expenses" asp-action="Index">Giderler</a>
-    <a asp-controller="Reports" asp-action="Index">Raporlar</a>
-</div>
 
-<div class="card kasa-sum-card">
-    <h2>Kasa Son Durumu</h2>
-    <div class="kasa-strip">
-        <div class="ks-group">
-            <span class="ks-title">Dolar ($)</span>
-            <div class="kasa-stats">
-                <div class="kasa-stat"><span class="label">Ciro</span><span class="amount">@Fmt.Usd(t.Ciro)</span></div>
-                <div class="kasa-stat"><span class="label">Tahsilat</span><span class="amount">@Fmt.Usd(t.Tahsilat)</span></div>
-                <div class="kasa-stat">
-                    <span class="label">Gider</span><span class="amount">@Fmt.Usd(t.GiderUsd)</span>
-                    @if (t.MissingRate > 0)
-                    {
-                        <span class="sub warn">@t.MissingRate giderin dolar kuru girilmemiş</span>
-                    }
-                    else
-                    {
-                        <span class="sub">@Fmt.Tl(t.GiderTl)</span>
-                    }
+<div class="home-panel active" id="panelKasa">
+    <span class="back-pair"><a class="btn secondary panel-back" id="backFromKasaBtn" asp-controller="Home" asp-action="Index">← Ana Sayfaya Dön</a><button type="button" class="btn secondary back-step" title="Geri: önceki sayfaya dön" aria-label="Geri" onclick="history.back()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg></button></span>
+    <partial name="_KasaTabs" model="@("panelKasa")" />
+    <div class="card kasa-sum-card kasa-strip-card">
+        <h2>Kasa Son Durumu</h2>
+        <div class="kasa-strip">
+            <div class="ks-group"><span class="ks-title">Dolar ($)</span>
+                <div class="kasa-stats">
+                    <div class="kasa-stat"><span class="label">Ciro</span><span class="amount" id="kasaTotalPrice">@Fmt.Usd(t.Ciro)</span></div>
+                    <div class="kasa-stat"><span class="label">Tahsilat</span><span class="amount" id="kasaTotalPaid">@Fmt.Usd(t.Tahsilat)</span></div>
+                    <div class="kasa-stat"><span class="label">Gider</span><span class="amount" id="kasaTotalExpense">@Fmt.Usd(t.GiderUsd)</span><span class="sub" id="kasaExpenseTl">@(t.GiderTl > 0 ? Fmt.Tl(t.GiderTl) : "")</span></div>
+                    <div class="kasa-stat result"><span class="label">Kasa Bakiye</span><span class="amount@(t.Bakiye < 0 ? " neg" : "")" id="kasaRemaining">@Fmt.Usd(t.Bakiye)</span></div>
                 </div>
-                <div class="kasa-stat result"><span class="label">Kasa Bakiye</span><span class="amount @(t.Bakiye < 0 ? "neg" : "")">@Fmt.Usd(t.Bakiye)</span></div>
+            </div>
+            <div class="ks-group"><span class="ks-title">Altın (gr)</span>
+                <div class="kasa-stats kasa-gold-stats">
+                    <div class="kasa-stat"><span class="label">Toplam Altın Ciro</span><span class="amount" id="kasaGoldTotal">@Fmt.Gr(t.GoldTotal)</span></div>
+                    <div class="kasa-stat"><span class="label">Alınan Altın Ödeme</span><span class="amount" id="kasaGoldPaid">@Fmt.Gr(t.GoldPaid)</span></div>
+                    <div class="kasa-stat result"><span class="label">Kalan Altın Bakiye</span><span class="amount" id="kasaGoldRemaining">@Fmt.Gr(t.GoldRest)</span><span class="sub gold-val" id="kasaGoldValue" data-gold-value="@Fmt.Input(t.GoldRest)"></span></div>
+                </div>
             </div>
         </div>
-        <div class="ks-group">
-            <span class="ks-title">Altın (gr)</span>
-            <div class="kasa-stats kasa-gold-stats">
-                <div class="kasa-stat"><span class="label">Toplam Altın Ciro</span><span class="amount">@Fmt.Gr(t.GoldTotal)</span></div>
-                <div class="kasa-stat"><span class="label">Alınan Altın Ödeme</span><span class="amount">@Fmt.Gr(t.GoldPaid)</span></div>
-                <div class="kasa-stat result"><span class="label">Kalan Altın Bakiye</span><span class="amount">@Fmt.Gr(t.GoldRest)</span><span class="sub gold-val" data-gold-value="@Fmt.Input(t.GoldRest)"></span></div>
+    </div>
+    <div class="card activity-card kasa-list-card">
+        <div class="records-head kasa-head">
+            <h2>Hareketler</h2>
+            <div class="kasa-head-btns">
+                <a class="qa" id="kasaOpenPayBtn" asp-controller="Payments" asp-action="Create" asp-route-fromKasa="true"><span class="qa-i k-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2"></rect><circle cx="12" cy="12.5" r="2.5"></circle><path d="M6 10v.01M18 15v.01"></path></svg></span>Ödeme Ekle</a>
+                <a class="qa" id="kasaExpBtn" asp-controller="Expenses" asp-action="Index" asp-fragment="giderForm"><span class="qa-i k-red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6 6 4-4 8 8"></path><path d="M15 17h6v-6"></path></svg></span>Gider Ekle</a>
+                <a class="qa" id="kasaXlsxBtn" asp-action="Excel" title="Hareketleri Excel dosyasına aktar" aria-label="Hareketleri Excel dosyasına aktar"><span class="qa-i k-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"></rect><path d="M8 8l8 8M16 8l-8 8"></path></svg></span>Excel'e aktar</a>
             </div>
+        </div>
+        <div class="kasa-filter-row" style="display:none;"></div>
+        <div class="kasa-period-sum" id="kasaPeriodSum"></div>
+        <div id="kasaScroll">
+            <div id="kasaSelBar" class="hist-selbar">
+                <label class="hsel"><input type="checkbox" id="kasaSelAll" aria-label="Tümünü seç"> <span>Tümünü seç</span></label>
+                <span id="kasaSelCnt" class="hsel-cnt"></span>
+                <div class="hs-filter kasa-hs">
+                    <div class="quick-search">
+                        <label for="kasaSearch">Hızlı Arama</label>
+                        <input type="text" id="kasaSearch" value="@Model.Search" placeholder="Müşteri, model, tarih, tür…" title="Borç / Ödeme / Gider yazabilir, virgülle birden fazla arama yapabilirsiniz" autocomplete="off">
+                    </div>
+                    <div class="kasa-period">
+                        <label for="kasaPeriod">Dönem</label>
+                        <select id="kasaPeriod" aria-label="Dönem">
+                            <option value="" selected="@(string.IsNullOrEmpty(Model.Period))">Dönem: Tümü</option>
+                            <option value="m0" selected="@(Model.Period == "m0")">Bu ay</option>
+                            <option value="m1" selected="@(Model.Period == "m1")">Geçen ay</option>
+                            <option value="y0" selected="@(Model.Period == "y0")">Bu yıl</option>
+                            <option value="y1" selected="@(Model.Period == "y1")">Geçen yıl</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div id="kasaList">
+                @foreach (var m in items)
+                {
+                    <partial name="_HistRow" model="m" view-data='new ViewDataDictionary(ViewData) { ["Mode"] = "kasa" }' />
+                }
+            </div>
+            <div class="empty-note" id="kasaEmptyNote" style="@(items.Count == 0 ? "" : "display:none;")"><div class="es"><div class="es-t">Kasa boş</div><div class="es-s">Ödeme ve giderler burada tarih sırasıyla listelenir.</div></div></div>
         </div>
     </div>
 </div>
 
-<div class="card activity-card kasa-list-card">
-    <div class="records-head kasa-head">
-        <h2>Hareketler</h2>
-        <div class="kasa-head-btns">
-            <a class="qa" asp-controller="Payments" asp-action="Create" asp-route-fromKasa="true"><span class="qa-i k-purple">＄</span>Ödeme Ekle</a>
-            <a class="qa" asp-controller="Expenses" asp-action="Index"><span class="qa-i k-red">−</span>Gider Ekle</a>
-            <a class="qa" asp-action="Excel" asp-route-q="@Model.Search" asp-route-period="@Model.Period"><span class="qa-i k-green">⤓</span>Excel'e aktar</a>
-        </div>
-    </div>
-    <form method="get" class="kasa-filter-row">
-        <div class="quick-search">
-            <label for="q">Hızlı Arama</label>
-            <input type="text" id="q" name="q" value="@Model.Search" placeholder="Müşteri, model, tarih, tür… (virgülle birden fazla)" />
-        </div>
-        <div class="kasa-period">
-            <label for="period">Dönem</label>
-            <select id="period" name="period" onchange="this.form.submit()">
-                <option value="" selected="@(string.IsNullOrEmpty(Model.Period))">Tümü</option>
-                <option value="m0" selected="@(Model.Period == "m0")">Bu ay</option>
-                <option value="m1" selected="@(Model.Period == "m1")">Geçen ay</option>
-                <option value="y0" selected="@(Model.Period == "y0")">Bu yıl</option>
-                <option value="y1" selected="@(Model.Period == "y1")">Geçen yıl</option>
-            </select>
-        </div>
-    </form>
-    @if (Model.Filtered)
-    {
-        <div class="kasa-period-sum">
-            <span>@Model.Items.Count hareket</span>
-            <span>Borç <b>@Fmt.Usd(Model.SumDebt)</b></span>
-            <span>Ödeme <b>@Fmt.Usd(Model.SumPay)</b></span>
-            <span>Gider <b>@Fmt.Usd(Model.SumExpense)</b></span>
-            <span>Ödeme − Gider <b>@Fmt.Usd(Model.SumPay - Model.SumExpense)</b></span>
-        </div>
-    }
-    <div id="kasaList" class="scroll-list">
-        @if (Model.Items.Count == 0)
-        {
-            <div class="empty-note">Henüz cari hareket yok. Sipariş ya da ödeme eklediğinizde burada listelenir.</div>
-        }
-        @foreach (var m in Model.Items)
-        {
-            <partial name="_MovementRow" model="m" view-data='new ViewDataDictionary(ViewData) { ["ReturnUrl"] = here }' />
-        }
-    </div>
-</div>
+@section Scripts {
+    <script>
+        (function () {
+            var $ = function (id) { return document.getElementById(id); };
+            var list = $('kasaList'), inp = $('kasaSearch'), per = $('kasaPeriod');
+            function inPeriod(r) {
+                var p = per.value; if (!p) return true;
+                var d = new Date(), y = d.getFullYear(), mo = d.getMonth(), from, to;
+                if (p === 'm0') { from = new Date(y, mo, 1); to = new Date(y, mo + 1, 1); }
+                else if (p === 'm1') { from = new Date(y, mo - 1, 1); to = new Date(y, mo, 1); }
+                else if (p === 'y0') { from = new Date(y, 0, 1); to = new Date(y + 1, 0, 1); }
+                else { from = new Date(y - 1, 0, 1); to = new Date(y, 0, 1); }
+                var x = new Date(r.dataset.d + 'T00:00:00'); return x >= from && x < to;
+            }
+            function apply() {
+                var q = inp.value.toLocaleLowerCase('tr-TR').split(',').map(function (s) { return s.trim(); }).filter(Boolean), n = 0;
+                list.querySelectorAll('.hist-row').forEach(function (r) {
+                    var ok = q.every(function (t) { return r.dataset.s.indexOf(t) >= 0; }) && inPeriod(r);
+                    r.hidden = !ok; if (ok) n++;
+                });
+                $('kasaEmptyNote').style.display = n ? 'none' : '';
+            }
+            inp.addEventListener('input', apply); per.addEventListener('change', apply); apply();
+            // Satıra tıklayınca müşteri / giderler sayfası
+            list.addEventListener('click', function (e) {
+                if (e.target.closest('.hsel-cell, .row-actions')) return;
+                var r = e.target.closest('.hist-row[data-href]'); if (r) location.href = r.dataset.href;
+            });
+            // Tümünü seç + sayaç
+            var all = $('kasaSelAll'), cnt = $('kasaSelCnt');
+            function upd() {
+                var boxes = list.querySelectorAll('.hsel-box'), k = list.querySelectorAll('.hsel-box:checked').length;
+                all.checked = boxes.length > 0 && k === boxes.length; all.indeterminate = k > 0 && !all.checked;
+                cnt.textContent = k ? k + ' kayıt seçili' : '';
+            }
+            all.addEventListener('change', function () { list.querySelectorAll('.hist-row:not([hidden]) .hsel-box').forEach(function (b) { b.checked = all.checked; }); upd(); });
+            list.addEventListener('change', function (e) { if (e.target.classList.contains('hsel-box')) upd(); });
+        })();
+    </script>
+}

@@ -1,110 +1,108 @@
 @model OrderFormVm
 @{
+    // Görünüm referans musteritakip.html → "Yeni Sipariş" penceresi (#recModal) ile aynı yapıdadır.
     var isNew = Model.Id == null;
     ViewData["Title"] = isNew ? "Yeni Sipariş" : "Siparişi Düzenle";
+    ViewData["Nav"] = "cust";
     var exps = Model.Expenses.Count > 0 ? Model.Expenses : new List<OrderExpenseVm> { new() };
+    var back = Url.Action("Details", "Customers", new { id = Model.CustomerId });
 }
-<span class="back-pair"><a class="btn secondary" asp-controller="Customers" asp-action="Details" asp-route-id="@Model.CustomerId">← @Model.CustomerName</a></span>
-
-<div class="card rec-card">
-    <div class="pay-head"><h2>@ViewData["Title"]</h2></div>
-    <p class="pay-cust">@Model.CustomerName</p>
-
-    <form method="post" asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@Model.Id" class="record-form" id="orderForm"
-          data-order-form
-          data-set-mum="@Fmt.Input(Model.SetMum)" data-set-gumus="@Fmt.Input(Model.SetGumus)" data-set-altin="@Fmt.Input(Model.SetAltin)"
-          data-brand="@Model.Brand">
-        <div asp-validation-summary="All" class="error full"></div>
-        <input type="hidden" asp-for="CustomerId" />
-        <input type="hidden" asp-for="LiveUsdTry" data-live="usd" />
-        <input type="hidden" asp-for="LiveGramAltinTl" data-live="gold" />
-
-        <div class="upload-btn">
-            <label class="thumb big" for="recordImage" data-thumb>
-                @if (Model.ExistingImage != null)
-                {
-                    <img src="@Model.ExistingImage" alt="" />
-                }
-                else
-                {
-                    <span>＋</span>
-                }
-            </label>
-            <input type="file" id="recordImage" accept="image/*" data-image-input="ImageData" data-max="1600" data-watermark />
+<div class="confirm-modal open" id="recModal" data-standalone data-back="@back">
+    <div class="confirm-card rec-card" role="dialog" aria-modal="true" aria-labelledby="recModalTitle">
+        <div class="pay-head">
+            <h2 id="recModalTitle">@ViewData["Title"] - @Model.CustomerName</h2>
+            <button type="button" class="x-close" id="recModalX" aria-label="Kapat">✕</button>
+        </div>
+        <p class="pay-cust" id="recModalCust"></p>
+        <form method="post" asp-controller="Orders" asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@Model.Id" class="record-form" id="recordForm" novalidate
+              data-order-form
+              data-set-mum="@Fmt.Input(Model.SetMum)" data-set-gumus="@Fmt.Input(Model.SetGumus)" data-set-altin="@Fmt.Input(Model.SetAltin)"
+              data-brand="@Model.Brand">
+            <div asp-validation-summary="All" class="error full"></div>
+            <input type="hidden" asp-for="CustomerId" />
+            <input type="hidden" asp-for="LiveUsdTry" data-live="usd" />
+            <input type="hidden" asp-for="LiveGramAltinTl" data-live="gold" />
             <input type="hidden" asp-for="ImageData" />
-            <span class="lbl">Model resmi yükle</span>
-            <label class="cam-btn" for="recordCamera">📷 Fotoğraf çek</label>
-            <input type="file" id="recordCamera" accept="image/*" capture="environment" hidden data-image-input="ImageData" data-max="1600" data-watermark />
-            @if (Model.ExistingImage != null)
-            {
-                <label class="chk"><input type="checkbox" asp-for="RemoveImage" /> Resmi kaldır</label>
-            }
-            <span class="field-hint">Resme “@Model.Brand” ve model kodu filigranı eklenir.</span>
-        </div>
-
-        <div class="field code-field">
-            <label>Müşteri kodu – Model no</label>
-            <div class="code-pair">
-                <input asp-for="CustCode" class="upper" maxlength="3" placeholder="—" aria-label="Müşteri kodu" data-code-cust />
-                <span class="code-dash">-</span>
-                <input asp-for="ModelNo" inputmode="numeric" maxlength="5" placeholder="0001" aria-label="Model no" data-code-no />
+            <div class="field kind-field">
+                <label for="recordKind">İşlem türü</label>
+                <select id="recordKind"><option value="" selected hidden>Seçin…</option><option value="Altın">Altın</option><option value="Kalıp">Kalıp</option></select>
             </div>
-        </div>
-        <div class="field grow">
-            <label asp-for="Model">Model adı</label>
-            <input asp-for="Model" class="upper" autocomplete="off" placeholder="Örn. Yüzük A12" required />
-        </div>
-        <div class="field">
-            <label asp-for="Date">Tarih</label>
-            <input type="date" asp-for="Date" />
-        </div>
-
-        <div class="rec-specs">
-            <div class="wrow">
-                <div class="wcell"><label asp-for="MumGram">Mum (gr)</label><input asp-for="MumGram" type="number" min="0" step="0.001" placeholder="0,000" data-calc="mumGr" /></div>
-                <div class="wcell"><label asp-for="MumIscilik">Mum ($)</label><input asp-for="MumIscilik" type="number" min="0" step="0.01" placeholder="0,00" data-calc="mumUsd" /></div>
-                <div class="wsep"></div>
-                <div class="wcell"><label asp-for="GumusGram">Gümüş (gr)</label><input asp-for="GumusGram" type="number" min="0" step="0.001" placeholder="0,000" data-calc="gumusGr" /></div>
-                <div class="wcell"><label asp-for="GumusUsd">Gümüş ($)</label><input asp-for="GumusUsd" type="number" min="0" step="0.01" placeholder="0,00" data-calc="gumusUsd" /></div>
-                <div class="wsep"></div>
-                <div class="wcell"><label asp-for="AltinGram">Altın (gr)</label><input asp-for="AltinGram" type="number" min="0" step="0.01" placeholder="0,00" data-calc="altinGr" /></div>
-                <div class="wcell"><label asp-for="AltinMilyem">Altın Milyem</label><input asp-for="AltinMilyem" type="number" min="0" max="1000" step="1" placeholder="585" data-calc="milyem" /></div>
-                <div class="wcell"><label asp-for="AltinCikis">Altın Çıkış (gr)</label><input asp-for="AltinCikis" type="number" min="0" step="0.001" placeholder="0,000" data-calc="cikis" /></div>
-                <div class="wcell"><label asp-for="AltinIscilik">Altın ($)</label><input asp-for="AltinIscilik" type="number" min="0" step="0.01" placeholder="0,00" data-calc="altinUsd" /></div>
-                <div class="wsep"></div>
-                <div class="wcell"><label asp-for="Cizim">Çizim ($)</label><input asp-for="Cizim" type="number" min="0" step="0.01" placeholder="0,00" data-calc="cizim" /></div>
+            <div class="upload-btn">
+                <label class="thumb" id="thumbLabel" for="recordImage" data-thumb>@if (Model.ExistingImage != null)
+                    {<img src="@Model.ExistingImage" alt="">}
+                    else
+                    {<text>＋</text>}<button type="button" class="thumb-x" title="Resmi kaldır" aria-label="Resmi kaldır">×</button></label>
+                <input type="file" id="recordImage" accept="image/*" data-image-input="ImageData" data-max="1600" data-watermark>
+                <span class="lbl">Model resmi yükle</span>
+                <label class="cam-btn" for="recordCamera" title="Kamerayla fotoğraf çek">📷 Fotoğraf çek</label>
+                <input type="file" id="recordCamera" accept="image/*" capture="environment" hidden data-image-input="ImageData" data-max="1600" data-watermark>
+                <input type="checkbox" asp-for="RemoveImage" hidden />
             </div>
-            <p class="field-hint" id="kindHint">Altın gr ve milyem girilirse sipariş <b>Altın</b>, girilmezse <b>Kalıp</b> olarak kaydedilir.</p>
-
-            <div class="rec-exps">
-                <span class="rec-exps-title">Masraflar <small>(cila, kaplama, taş mıhlama, dış atölye…)</small></span>
-                <div id="recExps">
-                    @for (int i = 0; i < exps.Count; i++)
-                    {
-                        <div class="rec-exp-row">
-                            <input type="text" class="rx-d" name="Expenses[@i].Desc" value="@exps[i].Desc" placeholder="Açıklama" />
-                            <input type="number" class="rx-a" name="Expenses[@i].Amount" value="@Fmt.Input(exps[i].Amount)" min="0" step="0.01" placeholder="$" data-calc="exp" />
-                            <button type="button" class="rx-x" title="Satırı sil">✕</button>
-                        </div>
-                    }
+            <div class="field" id="recordCodeWrap" style="flex:0 0 230px; min-width:200px;">
+                <label for="recordCustCode">Müşteri kodu – Model no</label>
+                <div class="code-pair">
+                    <input type="text" id="recordCustCode" name="CustCode" value="@Model.CustCode" autocomplete="off" maxlength="3" style="text-transform:uppercase;" placeholder="—" aria-label="Müşteri kodu (2-3 harf)" data-code-cust>
+                    <span class="code-dash">-</span>
+                    <input type="text" id="recordNo" name="ModelNo" value="@Model.ModelNo" inputmode="numeric" maxlength="5" autocomplete="off" placeholder="—" aria-label="Model numarası (4 hane)" data-code-no>
                 </div>
-                <button type="button" class="btn secondary sm" id="recExpAdd">+ Masraf satırı</button>
             </div>
-
-            <div class="wrow">
-                <div class="wcell price-cell"><label asp-for="Price">Fiyat ($)</label><input asp-for="Price" type="number" min="0" step="0.01" placeholder="0,00" required data-calc="price" /></div>
-                <p class="field-hint calc-note" id="calcNote"></p>
+            <div class="field grow">
+                <label for="recordModel">Model adı</label>
+                <input type="text" id="recordModel" name="Model" value="@Model.Model" autocomplete="off" placeholder="Örn. Yüzük A12" required data-upper>
             </div>
-        </div>
-
-        <div class="field rec-note-field">
-            <label asp-for="Note">Not</label>
-            <textarea asp-for="Note" rows="2" placeholder="Bu siparişle ilgili not (isteğe bağlı)"></textarea>
-        </div>
-
-        <div class="rec-actions">
-            <a class="btn secondary" asp-controller="Customers" asp-action="Details" asp-route-id="@Model.CustomerId">Vazgeç</a>
-            <button type="submit" class="btn">Siparişi kaydet</button>
-        </div>
-    </form>
+            <div class="field">
+                <label for="recordDate">Tarih</label>
+                <input type="date" id="recordDate" name="Date" value="@Model.Date" title="Boş bırakılırsa bugünün tarihi yazılır">
+            </div>
+            <div class="rec-specs">
+                <div class="wrow">
+                    <div class="wcell"><label for="recMumGr">Mum (gr)</label><input type="number" id="recMumGr" name="MumGram" value="@Fmt.Input(Model.MumGram)" min="0" step="0.001" placeholder="0,000" data-calc="mumGr"></div>
+                    <div class="wcell"><label for="recMumUsd">Mum ($)</label><input type="number" id="recMumUsd" name="MumIscilik" value="@Fmt.Input(Model.MumIscilik)" min="0" step="0.01" placeholder="0,00" data-calc="mumUsd"></div>
+                    <div class="wsep"></div>
+                    <div class="wcell"><label for="recGumusGr">Gümüş (gr)</label><input type="number" id="recGumusGr" name="GumusGram" value="@Fmt.Input(Model.GumusGram)" min="0" step="0.001" placeholder="0,000" data-calc="gumusGr"></div>
+                    <div class="wcell"><label for="recGumusUsd">Gümüş ($)</label><input type="number" id="recGumusUsd" name="GumusUsd" value="@Fmt.Input(Model.GumusUsd)" min="0" step="0.01" placeholder="0,00" data-calc="gumusUsd"></div>
+                    <div class="wsep"></div>
+                    <div class="wcell"><label for="recAltinGr">Altın (gr)</label><input type="number" id="recAltinGr" name="AltinGram" value="@Fmt.Input(Model.AltinGram)" min="0" step="0.01" placeholder="0,00" data-calc="altinGr"></div>
+                    <div class="wcell"><label for="recAltinMilyem">Altın Milyem</label><input type="text" id="recAltinMilyem" name="AltinMilyem" value="@Fmt.Input(Model.AltinMilyem)" inputmode="numeric" maxlength="4" placeholder="585" data-calc="milyem"></div>
+                    <div class="wcell"><label for="recAltinCikis">Altın Çıkış (gr)</label><input type="number" id="recAltinCikis" name="AltinCikis" value="@Fmt.Input(Model.AltinCikis)" min="0" step="0.001" placeholder="0,000" data-calc="cikis"></div>
+                    <div class="wcell"><label for="recAltinUsd">Altın ($)</label><input type="number" id="recAltinUsd" name="AltinIscilik" value="@Fmt.Input(Model.AltinIscilik)" min="0" step="0.01" placeholder="0,00" data-calc="altinUsd"></div>
+                    <div class="wsep"></div>
+                    <div class="wcell"><label for="recCizim">Çizim ($)</label><input type="number" id="recCizim" name="Cizim" value="@Fmt.Input(Model.Cizim)" min="0" step="0.01" placeholder="0,00" data-calc="cizim"></div>
+                </div>
+                <div class="exp-side">
+                    <div class="rec-exps">
+                        <span class="rec-exps-title">Masraflar <small>(cila, kaplama, taş mıhlama, dış atölye…)</small></span>
+                        <div id="recExps">
+                            @for (int i = 0; i < exps.Count; i++)
+                            {
+                                <div class="rec-exp-row">
+                                    <input type="text" class="rx-d" name="Expenses[@i].Desc" value="@exps[i].Desc" spellcheck="true" lang="tr" placeholder="Masraf açıklaması" aria-label="Masraf açıklaması">
+                                    <input type="number" class="rx-a" name="Expenses[@i].Amount" value="@Fmt.Input(exps[i].Amount)" min="0" step="0.01" placeholder="0,00 $" aria-label="Masraf tutarı ($)" data-calc="exp">
+                                    <button type="button" class="rx-x" title="Satırı sil" aria-label="Satırı sil">✕</button>
+                                </div>
+                            }
+                        </div>
+                        <button type="button" class="btn secondary sm" id="recExpAdd">+ Masraf satırı</button>
+                    </div>
+                    <div class="wrow">
+                        <div class="wcell price-cell">
+                            <label for="recordPrice">Fiyat ($)</label>
+                            <div class="unit-in"><input type="number" id="recordPrice" name="Price" value="@Fmt.Input(Model.Price)" min="0" step="0.01" placeholder="0,00" required data-calc="price"><span class="u">$</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="field rec-note-field">
+                <label for="recordNote">Not</label>
+                <div class="has-mic">
+                    <textarea id="recordNote" name="Note" spellcheck="true" lang="tr" rows="2" placeholder="Bu siparişle ilgili not (isteğe bağlı)">@Model.Note</textarea>
+                    <button type="button" class="mic-btn" title="Sesle yaz (Türkçe)" aria-label="Sesle yaz (Türkçe)"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" /></svg></button>
+                </div>
+            </div>
+            <div class="rec-actions">
+                <button type="submit" class="btn save-record" id="recordSubmitBtn">Siparişi kaydet</button>
+                <button type="button" class="btn secondary save-record" id="recordCancelBtn" data-close>Vazgeç</button>
+            </div>
+        </form>
+    </div>
 </div>

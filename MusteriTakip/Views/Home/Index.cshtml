@@ -1,93 +1,175 @@
 @model DashboardVm
 @{
-    ViewData["Title"] = "Ana Sayfa";
-    string Delta(decimal now, decimal prev)
+    // Görünüm referans musteritakip.html → #panelRecent ile aynı yapıdadır (Kurumsal Mavi teması).
+    ViewData["Title"] = "Güncel Durum";
+    ViewData["ContentClass"] = "recent-mode";
+    var userName = Ui.Cap(User.FindFirst("DisplayName")?.Value ?? User.Identity?.Name ?? "");
+    var prevName = Fmt.Tr.DateTimeFormat.GetMonthName(Dates.Today.AddMonths(-1).Month);
+
+    // HTML: renderMonthCard() → delta()
+    (string text, string cls, string title) Delta(decimal cur, decimal prev, bool badUp, Func<decimal, string> fmt)
     {
-        if (prev == 0) return now == 0 ? "" : "yeni";
-        var p = (now - prev) / Math.Abs(prev) * 100m;
-        return (p >= 0 ? "▲ %" : "▼ %") + Math.Abs(p).ToString("0", Fmt.Tr);
+        if (!(prev > 0.004m)) return (cur > 0.004m ? "yeni" : "", "m-delta flat", prevName + ": yok");
+        var pc = (int)Math.Round((cur - prev) / prev * 100m, MidpointRounding.AwayFromZero);
+        if (pc == 0) return ("= aynı", "m-delta flat", prevName + ": " + fmt(prev));
+        return ((pc > 0 ? "▲ %" : "▼ %") + Math.Abs(pc), "m-delta " + ((pc > 0) != badUp ? "up" : "down"), "Geçen aya göre (" + prevName + ": " + fmt(prev) + ")");
     }
-    string DeltaCls(decimal now, decimal prev, bool lowerIsBetter = false)
-    {
-        if (prev == 0 || now == prev) return "flat";
-        var up = now > prev;
-        return (up ^ lowerIsBetter) ? "up" : "down";
-    }
-    var display = User.FindFirst("DisplayName")?.Value ?? User.Identity?.Name ?? "";
+    string R0(decimal v) => Math.Round(v, MidpointRounding.AwayFromZero).ToString("N0", Fmt.Tr);
+    var dJobs = Delta(Model.This.Jobs, Model.Prev.Jobs, false, v => v.ToString("0", Fmt.Tr) + " iş");
+    var dCiro = Delta(Model.This.Ciro, Model.Prev.Ciro, false, v => Fmt.Usd(v));
+    var dPaid = Delta(Model.This.Tahsilat, Model.Prev.Tahsilat, false, v => Fmt.Usd(v));
+    var dExp = Delta(Model.This.GiderUsd, Model.Prev.GiderUsd, true, v => Fmt.Usd(v));
+    var detailsUrl = Url.Action("Details", "Customers");
 }
 
-<div class="dash-hello">
-    <div><h1>Merhaba @display</h1><p>@Fmt.Date(Dates.Today) · İşinizin bugünkü durumu</p></div>
-    <div class="hello-r"><a class="btn" asp-controller="Orders" asp-action="New">＋ Yeni Sipariş</a></div>
-</div>
-
-<div class="card month-card">
-    <div class="month-head"><h2>Bu Ay · @Model.MonthTitle</h2><span class="month-sub">Ayrıntı için kartlara tıklayın</span></div>
-    <div class="month-grid">
-        <a class="m-stat k-blue" asp-controller="Reports" asp-action="Index">
-            <span class="m-lbl">Sipariş</span><b>@Model.This.Jobs</b>
-            <small class="m-delta @DeltaCls(Model.This.Jobs, Model.Prev.Jobs)">@Delta(Model.This.Jobs, Model.Prev.Jobs)</small>
-        </a>
-        <a class="m-stat k-green" asp-controller="Reports" asp-action="Index">
-            <span class="m-lbl">Ciro</span><b>@Fmt.Usd(Model.This.Ciro)</b>
-            <small class="m-delta @DeltaCls(Model.This.Ciro, Model.Prev.Ciro)">@Delta(Model.This.Ciro, Model.Prev.Ciro)</small>
-        </a>
-        <a class="m-stat k-purple" asp-controller="Kasa" asp-action="Index" asp-route-period="m0">
-            <span class="m-lbl">Tahsilat</span><b>@Fmt.Usd(Model.This.Tahsilat)</b>
-            <small class="m-delta @DeltaCls(Model.This.Tahsilat, Model.Prev.Tahsilat)">@Delta(Model.This.Tahsilat, Model.Prev.Tahsilat)</small>
-        </a>
-        <a class="m-stat k-red" asp-controller="Expenses" asp-action="Index" asp-route-period="m0">
-            <span class="m-lbl">Gider</span><b>@Fmt.Usd(Model.This.GiderUsd)</b>
-            <small class="m-delta @DeltaCls(Model.This.GiderUsd, Model.Prev.GiderUsd, true)">@Delta(Model.This.GiderUsd, Model.Prev.GiderUsd)</small>
-        </a>
-        <a class="m-stat k-orange m-rest" asp-controller="Kasa" asp-action="Index">
-            <span class="m-lbl">Kasa Bakiye</span><b>@Fmt.Usd(Model.KasaBakiye)</b>
-            <small class="m-delta flat">tahsilat − gider</small>
-        </a>
+<div class="home-panel active" id="panelRecent">
+    <div class="dash-hello" id="dashHello">
+        <div><h1 id="helloTitle">@Ui.Greeting(), @userName</h1><p id="helloSub">İşinizin bugünkü durumu burada.</p></div>
+        <div class="hello-r"><span id="helloTime">Son güncelleme: @DateTime.Now.ToString("HH:mm")</span><a class="btn" id="helloRefresh" asp-action="Index">⟳ Yenile</a></div>
     </div>
-</div>
-
-<div class="grid2">
-    <div class="card">
-        <h2>Alacak Durumu</h2>
-        <div class="kasa-stats cols-3">
-            <div class="kasa-stat"><span class="label">Müşteri</span><span class="amount">@Model.CustomerCount</span></div>
-            <div class="kasa-stat"><span class="label">Borçlu müşteri</span><span class="amount">@Model.DebtorCount</span></div>
-            <div class="kasa-stat result"><span class="label">Toplam alacak</span><span class="amount">@Fmt.Usd(Model.TotalRest)</span><span class="sub">@Fmt.Gr(Model.TotalGoldRest) altın</span></div>
+    <div class="m-hero" id="mHero">
+        <div class="mh-top"><div><span>Toplam alacak</span><b id="mhRest">@Fmt.Usd(Model.TotalRest)</b><small id="mhSub">@(Model.This.Tahsilat > 0 ? "↑ bu ay " + Fmt.Usd(Model.This.Tahsilat) + " tahsil edildi" : "")</small></div><a class="mh-plus" id="mhPlus" aria-label="Yeni sipariş" asp-controller="Orders" asp-action="New">+</a></div>
+        <div class="mh-cards"><div><span>Müşteri</span><b id="mhCust">@Model.CustomerCount</b></div><div><span>Bu ay iş</span><b id="mhJobs">@Model.This.Jobs</b></div><div><span>Borçlu</span><b id="mhDebt">@Model.DebtorCount</b></div></div>
+    </div>
+    <div class="card month-card" id="monthCard">
+        <div class="month-head"><h2 id="monthTitle">Bu Ay · @Model.MonthTitle</h2><span class="month-sub">Ayrıntı için kartlara tıklayın</span></div>
+        <div class="month-grid">
+            <div class="m-stat k-blue" data-href="@Url.Action("Index", "Reports")" role="button" tabindex="0"><div class="m-top"><span class="m-ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 2h6l2 3-5 4-5-4zm3 8a6 6 0 1 0 6 6 6 6 0 0 0-6-6zm0 10a4 4 0 1 1 4-4 4 4 0 0 1-4 4z" /></svg></span><span class="m-lbl">Sipariş</span></div><b id="mJobs">@Model.This.Jobs</b><small class="@dJobs.cls" id="dJobs" title="@dJobs.title">@dJobs.text</small><div class="m-foot"><span id="tJobs">+@Model.Today.Jobs bugün</span><span class="m-go">→</span></div></div>
+            <div class="m-stat k-green" data-href="@Url.Action("Index", "Reports")" role="button" tabindex="0"><div class="m-top"><span class="m-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></svg></span><span class="m-lbl">Ciro</span></div><b id="mCiro">@Fmt.Usd(Model.This.Ciro)</b><small class="@dCiro.cls" id="dCiro" title="@dCiro.title">@dCiro.text</small><svg class="m-spark" id="spCiro" viewBox="0 0 100 30" preserveAspectRatio="none"></svg><div class="m-foot"><span id="tCiro">+@R0(Model.Today.Ciro) $ bugün</span><span class="m-go">→</span></div></div>
+            <div class="m-stat k-red" data-href="@Url.Action("Index", "Expenses")" role="button" tabindex="0"><div class="m-top"><span class="m-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6 6 4-4 8 8" /><path d="M15 17h6v-6" /></svg></span><span class="m-lbl">Gider</span></div><b id="mExp">@Fmt.Usd(Model.This.GiderUsd)</b><small class="@dExp.cls" id="dExp" title="@dExp.title">@dExp.text</small><div class="m-foot"><span id="tExp">@R0(Model.Today.GiderUsd) $ bugün</span><span class="m-go">→</span></div></div>
+            <div class="m-stat k-purple" data-href="@Url.Action("Index", "Kasa")" role="button" tabindex="0"><div class="m-top"><span class="m-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2" /><circle cx="12" cy="12.5" r="2.5" /><path d="M6 10v.01M18 15v.01" /></svg></span><span class="m-lbl">Tahsilat</span></div><b id="mPaid">@Fmt.Usd(Model.This.Tahsilat)</b><small class="@dPaid.cls" id="dPaid" title="@dPaid.title">@dPaid.text</small><svg class="m-spark" id="spPaid" viewBox="0 0 100 30" preserveAspectRatio="none"></svg><div class="m-foot"><span id="tPaid">+@R0(Model.Today.Tahsilat) $ bugün</span><span class="m-go">→</span></div></div>
+            <div class="m-stat k-orange m-rest" data-href="@Url.Action("Index", "Kasa")" role="button" tabindex="0"><div class="m-top"><span class="m-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4" /><path d="M4 6v12a2 2 0 0 0 2 2h14v-4" /><path d="M18 12a2 2 0 0 0 0 4h4v-4z" /></svg></span><span class="m-lbl">Kasa Bakiye</span></div><b id="mRest">@Fmt.Usd(Model.KasaBakiye)</b><small class="m-delta"></small><div class="m-foot"><span id="tRest">tahsilat − gider</span><span class="m-go">→</span></div></div>
         </div>
     </div>
-    <div class="card">
-        <h2>En Çok Borcu Olanlar</h2>
-        @if (Model.TopDebtors.Count == 0)
-        {
-            <p class="empty-note">Borçlu müşteri yok. 🎉</p>
-        }
-        else
-        {
-            <ul class="cust-list compact">
-                @foreach (var (c, rest) in Model.TopDebtors)
+    <div class="card activity-card home-recent">
+        <h2 id="homeRecentTitle">Son Eklenen Kayıtlar</h2>
+        <div class="quick-search">
+            <label for="homeRecentSearch">Hızlı Arama</label>
+            <input type="text" id="homeRecentSearch" placeholder="Müşteri, model, kod veya tarih…" title="Virgülle birden fazla arama yapabilirsiniz" value="@Model.Search" autocomplete="off">
+            <button type="button" id="homeRecentModeBtn" class="btn secondary sm">Zaman çizgisi görünümü</button>
+        </div>
+
+        @* Klasik liste (HTML: buildHomeRecentRow / buildHomeRecentEvRow) — ilk 40 kayıt; aramada hepsi taranır *@
+        <div id="homeRecentList" data-mode="classic">
+            @foreach (var it in Model.Recent)
+            {
+                var search = (it.CustName + " " + it.Model + " " + it.Kind + " " + it.Code + " " + it.CustCode + " " + Fmt.Date(it.Date) + " " + it.Date.ToString("yyyy-MM-dd")).ToLower(Fmt.Tr);
+                if (it.Ev == "rec")
                 {
-                    <li><a asp-controller="Customers" asp-action="Details" asp-route-id="@c.Id"><span>@c.Name</span><span class="cl-bal debt">@Fmt.Usd(rest)</span></a></li>
+                    <div class="rec-row home-rec-row has-detail" tabindex="0" data-kb="1" role="button" data-s="@search" data-href="@detailsUrl/@it.CustomerId#rec-@it.RecordId">
+                        <div class="thumb@(it.Image != null ? " clickable" : "")" data-note="@it.Note">@if (it.Image != null)
+                            {<img src="@it.Image" alt="" data-zoom data-caption="@it.CustName · @it.Model">}
+                            else
+                            {@Html.Raw(Ui.PhRing)}</div>
+                        <div class="date">@Fmt.Date(it.Date)<small title="Oluşturma saati">@Ui.Time(it.CreatedAt)</small>@if (it.EditedAt is { } ed)
+                            {<small class="ed" title="Değiştirilme tarihi">✎ @ed.ToLocalTime().ToString("dd.MM.yyyy")</small><small class="ed">@ed.ToLocalTime().ToString("HH:mm")</small>}</div>
+                        <div class="cust" title="Müşteri sayfasını aç" style="cursor:pointer" data-href="@detailsUrl/@it.CustomerId"><span class="cin" data-m="1">@it.CustName</span></div>
+                        <div class="hcode">@if (it.Code != "")
+                            {<span class="mcode">@it.Code</span>}
+                            else
+                            {<span class="mcode-none">—</span>}</div>
+                        <div class="model"><span class="cin" data-m="1">@it.Model</span><span class="hk">@if (it.Kind != "")
+                            {<span class="kind-tag@(it.KindCls)">@it.Kind</span>}</span></div>
+                    </div>
                 }
-            </ul>
-        }
+                else
+                {
+                    var href = it.Ev == "exp" ? Url.Action("Index", "Expenses") : $"{detailsUrl}/{it.CustomerId}";
+                    <div class="rec-row home-rec-row ev-row ev-@it.Ev has-detail" title="@(it.Ev == "exp" ? "Giderler sayfasını aç" : "Müşteri sayfasını aç")" tabindex="0" data-kb="1" role="button" data-s="@search" data-href="@href">
+                        <div class="thumb"><span class="ev-ic ev-@it.Ev">@it.Badge</span></div>
+                        <div class="date">@Fmt.Date(it.Date)<small title="Oluşturma saati">@Ui.Time(it.CreatedAt)</small></div>
+                        <div class="cust"><span class="cin" data-m="1">@it.CustName</span></div>
+                        <div class="hcode">@if (it.Code != "")
+                            {<span class="mcode mc-tur @it.CodeCls">@it.Code</span>}
+                            else
+                            {<span class="mcode-none">—</span>}</div>
+                        <div class="model"><span class="cin" data-m="1">@it.Model</span><span class="hk"><span class="kind-tag @(it.Ev == "exp" ? "k-gider" : "k-pay")">@it.Kind</span></span></div>
+                    </div>
+                }
+            }
+        </div>
+
+        @* Zaman çizgisi (HTML: renderHomeRecentListTimeline) — tarihe göre, ay başlıklarıyla *@
+        <template id="homeTimelineTpl">
+            <ol class="tl-list">
+                @{ var lastMonth = ""; var tl = Model.Recent.OrderByDescending(i => i.Date).ThenByDescending(i => i.CreatedAt).Take(60); }
+                @foreach (var it in tl)
+                {
+                    var mo = it.Date.ToString("yyyy-MM");
+                    if (mo != lastMonth)
+                    {
+                        lastMonth = mo;
+                        <li class="tl-month">@Fmt.Month(it.Date.Year, it.Date.Month)</li>
+                    }
+                    var search = (it.CustName + " " + it.Model + " " + it.Code + " " + it.Kind + " " + (it.Ev == "exp" ? "gider " : it.Ev == "pay" ? "ödeme " : "") + Fmt.Date(it.Date) + " " + it.Date.ToString("yyyy-MM-dd")).ToLower(Fmt.Tr);
+                    var href = it.Ev == "exp" ? Url.Action("Index", "Expenses") : $"{detailsUrl}/{it.CustomerId}";
+                    <li class="tl-item @it.Ev" data-s="@search" data-href="@href">
+                        <i class="tl-dot"></i>
+                        @if (it.Ev == "rec")
+                        {
+                            <div class="tl-body"><b>@(string.IsNullOrEmpty(it.Model) ? "—" : it.Model)</b>@if (it.Kind != "")
+                                {<text> </text><span class="tl-tag">@it.Kind</span>}<small>@it.CustName · @Fmt.Date(it.Date)@(it.Code != "" ? " · " + it.Code : "")</small></div>
+                            <span class="tl-amt">@it.TlAmt</span>
+                        }
+                        else if (it.Ev == "exp")
+                        {
+                            <div class="tl-body"><b>Gider</b> <span class="tl-tag exp">@it.TlTag</span><small>@(it.Model != it.CustName ? it.Model + " · " : "")@Fmt.Date(it.Date)</small></div>
+                            <span class="tl-amt exp">@it.TlAmt@if (it.TlAmtSub != null)
+                                {<small class="tl-amt-sub">@it.TlAmtSub</small>}</span>
+                        }
+                        else
+                        {
+                            <div class="tl-body"><b>Ödeme</b> <span class="tl-tag pay">@it.TlTag</span><small>@it.CustName · @Fmt.Date(it.Date)</small></div>
+                            <span class="tl-amt pay">@it.TlAmt@if (it.TlAmtSub != null)
+                                {<small class="tl-amt-sub">@it.TlAmtSub</small>}</span>
+                        }
+                    </li>
+                }
+            </ol>
+        </template>
+        <div class="empty-note" id="homeRecentEmptyNote" style="@(Model.Recent.Count == 0 ? "" : "display:none;")">Henüz sipariş yok. “Yeni Sipariş” ile ilk kaydı ekleyin; burada görünür.</div>
     </div>
 </div>
 
-<div class="card activity-card">
-    <h2>Zaman Çizgisi</h2>
-    <form method="get" class="quick-search">
-        <label for="q">Hızlı Arama</label>
-        <input type="text" id="q" name="q" value="@Model.Search" placeholder="Müşteri, model, kod veya tarih… (virgülle birden fazla)" />
-    </form>
-    @if (Model.Timeline.Count == 0)
-    {
-        <div class="empty-note">Henüz sipariş yok. “Yeni Sipariş” ile ilk kaydı ekleyin; burada görünür.</div>
-    }
-    <div class="scroll-list">
-        @foreach (var m in Model.Timeline)
-        {
-            <partial name="_MovementRow" model="m" view-data='new ViewDataDictionary(ViewData) { ["ShowActions"] = false }' />
-        }
-    </div>
-</div>
+@section Scripts {
+    <script>
+        // Ana sayfa listesi: klasik liste ⇄ zaman çizgisi, anlık arama, satıra tıklayınca ilgili sayfa
+        (function () {
+            var list = document.getElementById('homeRecentList'), tpl = document.getElementById('homeTimelineTpl');
+            var btn = document.getElementById('homeRecentModeBtn'), title = document.getElementById('homeRecentTitle');
+            var inp = document.getElementById('homeRecentSearch'), empty = document.getElementById('homeRecentEmptyNote');
+            var classicHtml = list.innerHTML, timelineHtml = tpl.innerHTML;
+            function mode() { try { return localStorage.getItem('mt_home_recent') === 'timeline' ? 'timeline' : 'classic'; } catch (e) { return 'classic'; } }
+            function terms() { return (inp.value || '').toLocaleLowerCase('tr-TR').split(',').map(function (s) { return s.trim(); }).filter(Boolean); }
+            function render() {
+                var m = mode(), q = terms();
+                title.textContent = m === 'classic' ? 'Son Eklenen Kayıtlar' : 'Zaman Çizgisi';
+                btn.textContent = m === 'classic' ? 'Zaman çizgisi görünümü' : 'Klasik liste görünümü';
+                list.innerHTML = m === 'classic' ? classicHtml : timelineHtml;
+                var rows = list.querySelectorAll('[data-s]'), shown = 0;
+                rows.forEach(function (r) {
+                    var ok = q.length ? q.every(function (t) { return r.dataset.s.indexOf(t) >= 0; }) : (m === 'timeline' || shown < 40);
+                    r.hidden = !ok; if (ok) shown++;
+                });
+                if (m === 'timeline') {
+                    // boş kalan ay başlıklarını gizle
+                    list.querySelectorAll('.tl-month').forEach(function (h) {
+                        var n = h.nextElementSibling, any = false;
+                        while (n && !n.classList.contains('tl-month')) { if (!n.hidden) any = true; n = n.nextElementSibling; }
+                        h.hidden = !any;
+                    });
+                    if (!shown) list.innerHTML = '<div class="tl-empty">Hareket yok</div>';
+                }
+                empty.style.display = (m === 'classic' && !rows.length) ? 'block' : 'none';
+            }
+            btn.addEventListener('click', function () { try { localStorage.setItem('mt_home_recent', mode() === 'classic' ? 'timeline' : 'classic'); } catch (e) { } render(); });
+            inp.addEventListener('input', render);
+            list.addEventListener('click', function (e) {
+                if (e.target.closest('.thumb.clickable')) return; // resim büyütme
+                var c = e.target.closest('[data-href]'); if (c) location.href = c.dataset.href;
+            });
+            document.querySelectorAll('.m-stat[data-href]').forEach(function (s) { s.addEventListener('click', function () { location.href = s.dataset.href; }); });
+            render();
+        })();
+    </script>
+}

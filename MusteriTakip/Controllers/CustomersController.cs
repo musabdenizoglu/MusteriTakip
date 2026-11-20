@@ -41,7 +41,7 @@ public class CustomersController : Controller
             "az" => items.OrderBy(x => x.Customer.Name, StringComparer.Create(Fmt.Tr, false)),
             "debt" => items.OrderByDescending(x => x.Rest),
             "last" => items.OrderByDescending(x => x.LastDate ?? DateOnly.MinValue),
-            _ => items.OrderByDescending(x => x.Customer.CreatedAt)
+            _ => items.OrderBy(x => x.Customer.CreatedAt).ThenBy(x => x.Customer.Id) // HTML: kayıt sırası
         };
         var trash = await _db.Customers.IgnoreQueryFilters().CountAsync(c => c.DeletedAt != null)
                   + await _db.OrderRecords.IgnoreQueryFilters().CountAsync(r => r.DeletedAt != null)

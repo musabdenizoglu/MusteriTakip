@@ -32,6 +32,12 @@ public class Movement
     public string? ImagePath { get; set; }
     public bool MissingRate { get; set; }
 
+    // Kaynak kayıtlar (ekranda HTML'deki gibi rozet/kod/etiket çizmek için)
+    public Customer? Cust { get; set; }
+    public OrderRecord? Rec { get; set; }
+    public Payment? Pay { get; set; }
+    public Expense? Exp { get; set; }
+
     public string TypeText => Type switch
     {
         MovementType.Order => "Sipariş",
@@ -255,7 +261,8 @@ public class LedgerService
                     SubText = g > 0 ? $"{Fmt.Num(r.AltinGram)} gr × {Fmt.Num(r.AltinMilyem, 0)} = {Fmt.Gr(g)}" : null,
                     AmountUsd = r.Price ?? 0m,
                     Gold = g,
-                    ImagePath = r.ImagePath
+                    ImagePath = r.ImagePath,
+                    Cust = c, Rec = r
                 });
             }
             foreach (var p in c.Payments)
@@ -275,7 +282,8 @@ public class LedgerService
                     PayUsd = PayUsd(p),
                     CashUsd = PayCash(p),
                     AmountTl = p.Tl,
-                    Gold = -GoldPaid(p)
+                    Gold = -GoldPaid(p),
+                    Cust = c, Pay = p
                 });
             }
         }
@@ -295,7 +303,8 @@ public class LedgerService
                     SubText = e.Rate > 0 ? $"{Fmt.Tl(e.Amount)} ÷ {Fmt.Rate(e.Rate)}" : "kur girilmemiş",
                     AmountUsd = usd ?? 0m,
                     AmountTl = e.Amount,
-                    MissingRate = usd == null
+                    MissingRate = usd == null,
+                    Exp = e
                 });
             }
         }

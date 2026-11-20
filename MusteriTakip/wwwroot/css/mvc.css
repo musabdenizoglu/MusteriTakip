@@ -1,0 +1,39 @@
+/* Müşteri Takip — MVC'ye özel küçük ekler.
+   site.css referans HTML'in birebir kopyasıdır; HTML'de <button> olan bazı öğeler burada
+   sayfa bağlantısı (<a>) ya da <form> olduğu için aynı görünsünler diye gereken düzeltmeler burada. */
+
+/* Bağlantı olan menü öğeleri düğme gibi görünsün */
+:where(#fmSide) a, :where(.m-tabbar) a, a.bk-chip, a.fm-logo { text-decoration: none; }
+:where(#fmSide) a { color: inherit; }
+#fmSide a.fm-logo { color: inherit; }
+#fmSide .fm-kid { display: block; text-align: left; }
+a.btn, a.btn:hover { text-decoration: none; }
+a.bk-chip { color: inherit; cursor: pointer; }
+.fm-umenu form { margin: 0; }
+.fm-umenu form button { width: 100%; }
+form.gsearch { margin: 0; }
+form.inline { display: inline; margin: 0; }
+
+/* Bilgi / hata mesajı (kaydedildi, silindi vb.) */
+.flash { margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; font-weight: 600; font-size: .9rem; border: 1px solid; }
+.flash.ok { background: #E8F5EE; border-color: #A9D8BD; color: #1E6B43; }
+.flash.err { background: #FDECEC; border-color: #F0B4B4; color: #9B2C2C; }
+html[data-theme="dark"] .flash.ok { background: rgba(46, 125, 79, .18); border-color: rgba(46, 125, 79, .5); color: #9AD9B4; }
+html[data-theme="dark"] .flash.err { background: rgba(178, 59, 59, .18); border-color: rgba(178, 59, 59, .5); color: #F0A0A0; }
+
+/* Sunucuda çizilen satırlar: tıklanabilir satır bağlantısı */
+a.rec-row, a.hist-row { color: inherit; text-decoration: none; }
+
+/* "⋯ İşlemler" menüsü: HTML'deki düğmelerle aynı görünüm (burada bağlantı ve form) */
+.more-menu a { display: block; width: 100%; text-align: left; color: var(--ink); font-size: .92rem; padding: 10px 12px; border-radius: 8px; text-decoration: none; }
+.more-menu a:hover { background: var(--bg); color: var(--teal); }
+.more-menu form { margin: 0; }
+/* Ana sayfadan gelinen siparişi kısa süre vurgula */
+.rec-row.flash-row { animation: mvcFlash 1.6s ease 1; }
+@keyframes mvcFlash { 0%, 40% { box-shadow: inset 0 0 0 2px var(--teal); } 100% { box-shadow: none; } }
+/* Hızlı işlem düğmeleri (Ödeme Ekle, Gider Ekle…) bağlantı olduğunda altı çizilmesin */
+a.qa, a.qa:hover { text-decoration: none; color: inherit; }
+/* Boş doğrulama özeti yer kaplamasın; hata varsa formun üstünde tam genişlik görünsün */
+.validation-summary-valid { display: none !important; }
+.record-form .validation-summary-errors { flex: 1 0 100%; grid-column: 1 / -1; color: var(--danger); font-weight: 600; font-size: .88rem; }
+.record-form .validation-summary-errors ul { margin: 0; padding-left: 18px; }

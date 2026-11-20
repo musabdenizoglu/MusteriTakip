@@ -1,73 +1,84 @@
 @model CustomerListVm
 @{
+    // Görünüm referans musteritakip.html → #panelSelectCust ile aynı yapıdadır.
     ViewData["Title"] = "Müşteriler";
 }
-<div class="card">
-    <div class="records-head cust-head">
-        <h2>Müşteriler <span class="count-pill">@Model.Items.Count</span></h2>
-        <span>
-            <a class="btn secondary" asp-controller="Trash" asp-action="Index">🗑 Çöp Kutusu @if (Model.TrashCount > 0) {<span class="count-pill">@Model.TrashCount</span>}</a>
-            <a class="btn" asp-action="Create">+ Yeni Müşteri</a>
-        </span>
-    </div>
-    <form method="get" class="cust-sort-row">
-        <input type="text" class="search" name="q" value="@Model.Search" placeholder="Müşteri adı, kod ya da telefonla ara…" />
-        <select name="sort" onchange="this.form.submit()" aria-label="Sıralama">
-            <option value="" selected="@(string.IsNullOrEmpty(Model.Sort))">Sıralama: varsayılan</option>
-            <option value="az" selected="@(Model.Sort == "az")">A → Z</option>
-            <option value="debt" selected="@(Model.Sort == "debt")">Borcu çok olan üstte</option>
-            <option value="last" selected="@(Model.Sort == "last")">Son işlem yeni olan üstte</option>
-        </select>
-    </form>
-
-    @if (Model.Items.Count == 0)
-    {
-        <div class="empty-note">Henüz müşteri yok. Sağ üstteki “+ Yeni Müşteri” ile ilk müşterinizi ekleyin.</div>
-    }
-    else
-    {
-        <div class="cust-list-head" aria-hidden="true"><span></span><span>Müşteri İsmi</span><span>Kod</span><span>Telefon</span><span>Son işlem</span><span>Bakiye</span></div>
-        <ul class="cust-list full">
+<div class="home-panel active" id="panelSelectCust">
+    <span class="back-pair"><a class="btn secondary panel-back" asp-controller="Home" asp-action="Index">← Ana Sayfaya Dön</a><button type="button" class="btn secondary back-step" title="Geri: önceki sayfaya dön" aria-label="Geri" onclick="history.back()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg></button></span>
+    <div class="card">
+        <div class="records-head cust-head">
+            <h2>Müşteriler</h2>
+            <span><a class="btn secondary trash-chip" id="trashGoBtn" asp-controller="Trash" asp-action="Index" title="Çöp kutusu (son 30 gün)" aria-label="Çöp kutusu (son 30 gün)">🗑 Çöp Kutusu <span class="count-pill" id="trashCnt">@(Model.TrashCount > 0 ? Model.TrashCount.ToString() : "")</span></a> <a class="btn save-record" id="custNewBtn" asp-action="Create">+ Yeni Müşteri</a></span>
+        </div>
+        <form method="get" class="cust-sort-row" id="custSortForm">
+            <input type="text" class="search" id="custSearch" name="q" value="@Model.Search" placeholder="Müşteri adıyla ara…" aria-label="Müşteri ara" autocomplete="off">
+            <select id="custSort" name="sort" aria-label="Sıralama" onchange="this.form.submit()">
+                <option value="" selected="@(string.IsNullOrEmpty(Model.Sort))">Sıralama: varsayılan</option>
+                <option value="az" selected="@(Model.Sort == "az")">A → Z</option>
+                <option value="debt" selected="@(Model.Sort == "debt")">Borcu çok olan üstte</option>
+                <option value="last" selected="@(Model.Sort == "last")">Son işlem yeni olan üstte</option>
+            </select>
+        </form>
+        <div class="cust-list-head" id="custListHead" aria-hidden="true"><span>Müşteri İsmi</span><span>E-posta</span><span>Telefon</span><span>Bakiye</span><span></span></div>
+        <ul class="cust-list" id="custList">
             @foreach (var it in Model.Items)
             {
                 var c = it.Customer;
-                <li>
-                    <a asp-action="Details" asp-route-id="@c.Id">
-                        <span class="avatar">
-                            @if (c.ImagePath != null)
-                            {
-                                <img src="@c.ImagePath" alt="" />
-                            }
+                <li tabindex="0" data-kb="1" role="button" data-href="@Url.Action("Details", new { id = c.Id })" data-name="@c.Name.ToLower(Fmt.Tr)">
+                    <div class="info">
+                        <span class="avatar">@if (c.ImagePath != null)
+                            {<img src="@c.ImagePath" alt="">}
                             else
-                            {
-                                <span class="ini-av" style="background:@Fmt.AvatarColor(c.Name)">@Fmt.Initials(c.Name)</span>
-                            }
-                        </span>
+                            {<span class="ini-av" style="background:@Ui.AvColor(c.Name)">@Ui.Initials(c.Name)</span>}</span>
                         <span class="cl-name">@c.Name</span>
-                        <span class="muted">@c.Code</span>
-                        <span class="muted">@c.Phone</span>
-                        <span class="muted">@Fmt.Date(it.LastDate)</span>
-                        <span class="cl-right">
-                            @if (it.Rest > 0.004m)
-                            {
-                                <span class="cl-bal debt">@Fmt.Usd(it.Rest)</span>
-                            }
-                            else if (it.Rest < -0.004m)
-                            {
-                                <span class="cl-bal credit">@Fmt.Usd(-it.Rest) alacaklı</span>
-                            }
-                            else
-                            {
-                                <span class="cl-bal ok">0 $</span>
-                            }
-                            @if (Math.Abs(it.GoldRest) > 0.0005m)
-                            {
-                                <small class="cl-sub">@Fmt.Gr(it.GoldRest)</small>
-                            }
-                        </span>
-                    </a>
+                    </div>
+                    <span class="cl-mail">@if (!string.IsNullOrWhiteSpace(c.Email))
+                        {@c.Email}
+                        else
+                        {<span class="cl-none">—</span>}</span>
+                    <span class="cl-phone">@if (!string.IsNullOrWhiteSpace(c.Phone))
+                        {@c.Phone}
+                        else
+                        {<span class="cl-none">—</span>}</span>
+                    <span class="cl-right">@if (it.Rest > 0.005m)
+                        {<span class="cl-bal debt">Borç @Fmt.Usd(it.Rest)</span>}
+                        else if (it.Rest < -0.005m)
+                        {<span class="cl-bal credit">Alacaklı @Fmt.Usd(-it.Rest)</span>}<span class="muted cl-sub">@(it.LastDate is { } ld ? "son işlem " + Fmt.Date(ld) : "")</span></span>
+                    <span class="cl-editcell">
+                        <button type="button" class="cl-edit" data-href="@Url.Action("Edit", new { id = c.Id })" title="Müşteri bilgilerini düzenle" aria-label="Müşteri bilgilerini düzenle: @c.Name">✎</button>
+                        <form method="post" asp-action="Delete" asp-route-id="@c.Id" class="inline" data-confirm="&quot;@c.Name&quot; adlı müşteriyi ve tüm kayıtlarını silmek istediğinize emin misiniz? 30 gün içinde Ayarlar → Çöp Kutusu'ndan geri alabilirsiniz."><button type="submit" class="cl-del" title="Müşteriyi sil" aria-label="Müşteriyi sil">✕</button></form>
+                    </span>
                 </li>
             }
         </ul>
-    }
+        <div class="empty-note" id="custEmptyNote" style="@(Model.Items.Count == 0 ? "" : "display:none;")">Henüz müşteri yok. Sağ üstteki “+ Yeni Müşteri” ile ilk müşterinizi ekleyin.</div>
+    </div>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var ul = document.getElementById('custList'), inp = document.getElementById('custSearch');
+            // Satıra tıklayınca müşteri sayfası (düzenle/sil düğmeleri hariç)
+            ul.addEventListener('click', function (e) {
+                if (e.target.closest('.cl-editcell')) return;
+                var li = e.target.closest('li[data-href]'); if (li) location.href = li.dataset.href;
+            });
+            // Yazarken anında süz (HTML gibi); Enter sunucuda arar
+            inp.addEventListener('input', function () {
+                var t = inp.value.trim().toLocaleLowerCase('tr-TR');
+                ul.querySelectorAll('li').forEach(function (li) { li.hidden = t !== '' && li.dataset.name.indexOf(t) < 0; });
+            });
+            // Kalem düğmeleri aynı hizada: en uzun müşteri adına göre (HTML: --clname)
+            try {
+                var first = ul.querySelector('.cl-name');
+                if (first) {
+                    var cs = getComputedStyle(first), cv = document.createElement('canvas').getContext('2d'), mx = 0;
+                    cv.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+                    ul.querySelectorAll('.cl-name').forEach(function (n) { mx = Math.max(mx, cv.measureText(n.textContent).width); });
+                    ul.style.setProperty('--clname', Math.ceil(mx + 14) + 'px');
+                }
+            } catch (e) { }
+        })();
+    </script>
+}

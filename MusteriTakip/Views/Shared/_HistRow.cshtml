@@ -1,0 +1,127 @@
+@model Movement
+@{
+    // Hesap hareketi satırı — referans HTML'deki iki satır tipinin karşılığı:
+    //  Mode = "kasa": Genel Kasa (buildMovementRow)   Mode = "cust": müşterinin hesap hareketleri (renderHistory)
+    var kasa = (ViewData["Mode"] as string) == "kasa";
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+    var m = Model;
+    var type = m.Type switch { MovementType.Payment => "payment", MovementType.Expense => "expense", _ => "price" };
+    var p = m.Pay; var r = m.Rec; var x = m.Exp;
+    var isTlPay = p != null && p.PayType == OdemeTuru.Tl && (p.Tl ?? 0) > 0;
+    var isGrPay = p != null && p.PayType == OdemeTuru.Gram && (p.Gram ?? 0) > 0;
+
+    // Etiket (Altın / Kalıp / Eski borç / Hurda / Nakit-$)
+    string kindTxt = r != null ? Ui.RecKind(r) : (p != null ? Fmt.KindText(p.Kind) : "");
+    var hurda = p != null && Ui.IsHurda(p);
+    var kindCls = hurda ? " k-hurda" : (kindTxt == "Kalıp" ? " k-kalip" : (kindTxt is "Eski borç" or "Eski bakiye" ? " k-debt" : ""));
+    var rate = p != null ? Ui.PayRate(p) : null;
+
+    // Açıklama
+    string? descMain = null, descSub = null, descPlain = null;
+    if (p != null)
+    {
+        if (p.Kind == IslemTuru.Altin && p.PayType != OdemeTuru.Yok) { descMain = Ui.PayMain(p); descSub = Ui.PaySub(p); }
+        else descPlain = Ui.PayPlainDesc(p);
+    }
+    else if (r != null) descPlain = r.Model;
+
+    // Tutar
+    var sign = type == "payment" ? "+" : (type == "expense" ? "−" : "");
+    string amtMain = isGrPay ? Fmt.Gr(p!.Gram) : (isTlPay ? Fmt.Tl(p!.Tl) : Fmt.Usd(m.AmountUsd));
+    string? amtSub = type == "expense" ? ((x?.Amount ?? 0) > 0 ? Fmt.Tl(x!.Amount) : null) : (isTlPay ? Fmt.Usd(p!.Amount) : null);
+    string? goldLine = r != null ? Ui.GoldCalc(r) : (p != null ? Ui.PayAcct(p) : null);
+
+    var key = type + ":" + m.Id;
+    var detailsUrl = m.CustomerId != null ? Url.Action("Details", "Customers", new { id = m.CustomerId }) : null;
+    var rowHref = type == "expense" ? Url.Action("Index", "Expenses") : detailsUrl;
+    var search = string.Join(" ", new[] { m.CustomerName, descMain, descSub, descPlain, kindTxt, x?.Note, x != null ? LedgerService.ExpenseLabel(x) : null, r?.Code, Fmt.Date(m.Date), m.Date.ToString("yyyy-MM-dd"), type == "payment" ? "ödeme" : (type == "expense" ? "gider" : "borç") }.Where(s => !string.IsNullOrWhiteSpace(s))).ToLower(Fmt.Tr);
+}
+<div class="hist-row@(kasa ? " kasa-row" : "") kr-@type" @(kasa ? Html.Raw("tabindex=\"0\" data-kb=\"1\" role=\"button\"") : null) data-s="@search" data-d="@m.Date.ToString("yyyy-MM-dd")" data-href="@(kasa ? rowHref : null)">
+    @if (type != "expense")
+    {
+        <label class="hsel hsel-cell"><input type="checkbox" class="hsel-box" data-key="@key" aria-label="Kaydı seç"></label>
+    }
+    else
+    {
+        <span class="hsel-cell hsel-none"></span>
+    }
+    @if (kasa)
+    {
+        <span class="bd-wrap"><span class="badge @type">@(type == "payment" ? "Ödeme" : "Borç")</span></span>
+        <span class="cust @type">@if (type == "expense")
+            {<span class="kind-tag k-gider">@LedgerService.ExpenseLabel(x!)</span>}
+            else
+            {@m.CustomerName}</span>
+    }
+    else
+    {
+        var rz = p != null ? Ui.PayCls(p) : "k-is";
+        var code = p != null ? Ui.PayCode(p, m.Cust!) : (r?.Code ?? "");
+        <span class="bd-wrap"><span class="badge @type rz @rz" title="@(type == "payment" ? "Ödeme" : "Borç")">@(p != null ? Ui.PayBadge(p) : "İŞ")</span></span>
+        <span class="hist-code"><span class="hc-in">@if (code != "")
+            {<span class="mcode mc-tur @rz">@code</span>}
+            else
+            {<span class="mcode-none">—</span>}</span></span>
+        <span class="hist-cust @type">@m.CustomerName</span>
+    }
+    <span class="hist-kind">@if (type == "expense")
+        {<span class="kind-tag lead k-gider" title="@Fmt.Tl(x!.Amount)">Gider</span>}
+        else if (kindTxt != "")
+        {<span class="tag-wrap"><span class="kind-tag lead@(kindCls)">@(hurda ? "Hurda" : kindTxt)</span>@if (rate != null)
+                {<small class="tag-rate">kur @Ui.Rate(rate.Value)</small>}</span>}
+        else if (p != null && p.PayType != OdemeTuru.Gram)
+        {<span class="tag-wrap"><span class="kind-tag lead k-nakit">@(p.PayType == OdemeTuru.Tl ? "Nakit-₺" : p.PayType == OdemeTuru.Usd ? "Nakit-$" : "Nakit")</span>@if (rate != null && p.PayType != OdemeTuru.Usd)
+                {<small class="tag-rate">kur @Ui.Rate(rate.Value)</small>}</span>}</span>
+    @if (type == "expense")
+    {
+        <span class="hist-desc tl-desc">@if (!string.IsNullOrWhiteSpace(x!.Note))
+            {<span class="exp-note-k" title="@Fmt.Tl(x.Amount)">@x.Note</span>}
+            else
+            {<span class="desc-empty"></span>}</span>
+    }
+    else if (descMain != null)
+    {
+        <span class="hist-desc" title="@(descMain + (descSub != null ? "\n" + descSub : ""))"><span class="desc-main" lang="tr">@descMain</span>@if (descSub != null)
+            {<small class="desc-sub">@descSub</small>}</span>
+    }
+    else
+    {
+        <span class="hist-desc" title="@descPlain">@if (!string.IsNullOrEmpty(descPlain))
+            {@descPlain}
+            else
+            {<span class="desc-empty"></span>}</span>
+    }
+    <span class="hist-date">@Fmt.Date(m.Date)</span>
+    <span class="hist-amount">@if (m.MissingRate)
+        {<span class="usd-missing">kur girilmedi</span>}
+        else
+        {<span class="amt-wrap"><span class="@(isGrPay ? "amt-gr" : null)">@sign@amtMain</span>@if (goldLine != null)
+                {
+                    if (r != null)
+                    {<div class="gold-calc" title="Altın gr × milyem = altın çıkış">@goldLine</div>}
+                    else
+                    {<span class="gold-calc pay-acct">@goldLine</span>}
+                }@if (amtSub != null)
+                {<span class="amt-tl">@amtSub</span>}</span>}</span>
+    <div class="row-actions">
+        @switch (m.Type)
+        {
+            case MovementType.Order:
+                <button type="button" class="edit" data-modal data-href="@Url.Action("Edit", "Orders", new { id = m.Id })" title="Düzenle" aria-label="Düzenle: @m.CustomerName, @descPlain, @Fmt.Date(m.Date)">✎</button>
+                <form method="post" asp-controller="Orders" asp-action="Delete" asp-route-id="@m.Id" asp-route-returnUrl="@returnUrl" class="inline" data-confirm="Bu sipariş çöp kutusuna taşınsın mı?"><button class="del" type="submit" title="Sil" aria-label="Sil">✕</button></form>
+                break;
+            case MovementType.Debt:
+                <button type="button" class="edit" data-href="@Url.Action("EditDebt", "Orders", new { id = m.Id })" title="Düzenle" aria-label="Düzenle">✎</button>
+                <form method="post" asp-controller="Orders" asp-action="Delete" asp-route-id="@m.Id" asp-route-returnUrl="@returnUrl" class="inline" data-confirm="Bu borç kaydı çöp kutusuna taşınsın mı?"><button class="del" type="submit" title="Sil" aria-label="Sil">✕</button></form>
+                break;
+            case MovementType.Payment:
+                <button type="button" class="edit" data-href="@Url.Action("Edit", "Payments", new { id = m.Id })" title="Düzenle" aria-label="Düzenle">✎</button>
+                <form method="post" asp-controller="Payments" asp-action="Delete" asp-route-id="@m.Id" asp-route-returnUrl="@returnUrl" class="inline" data-confirm="Bu ödeme çöp kutusuna taşınsın mı?"><button class="del" type="submit" title="Sil" aria-label="Sil">✕</button></form>
+                break;
+            default:
+                <button type="button" class="edit" data-href="@Url.Action("Index", "Expenses", new { edit = m.Id })" title="Düzenle" aria-label="Düzenle">✎</button>
+                <form method="post" asp-controller="Expenses" asp-action="Delete" asp-route-id="@m.Id" class="inline" data-confirm="Bu gider çöp kutusuna taşınsın mı?"><button class="del" type="submit" title="Sil" aria-label="Sil">✕</button></form>
+                break;
+        }
+    </div>
+</div>

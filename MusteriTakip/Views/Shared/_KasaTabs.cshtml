@@ -1,0 +1,8 @@
+@model string
+@* Kasa bölümünün sekmeleri (HTML: .seg-tabs) — Hareketler / Giderler / Raporlar.
+   HTML'deki gibi <button>; tıklayınca data-href sayfasına gider (site.js). *@
+<div class="seg-tabs" data-seg>
+    <button type="button" class="@(Model == "panelKasa" ? "on" : null)" aria-current="@(Model == "panelKasa" ? "page" : null)" data-href="@Url.Action("Index", "Kasa")">Hareketler</button>
+    <button type="button" class="@(Model == "panelGiderler" ? "on" : null)" aria-current="@(Model == "panelGiderler" ? "page" : null)" data-href="@Url.Action("Index", "Expenses")">Giderler</button>
+    <button type="button" class="@(Model == "panelRaporlar" ? "on" : null)" aria-current="@(Model == "panelRaporlar" ? "page" : null)" data-href="@Url.Action("Index", "Reports")">Raporlar</button>
+</div>

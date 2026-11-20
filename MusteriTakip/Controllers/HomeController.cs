@@ -21,9 +21,9 @@ public class HomeController : Controller
         var m0 = new DateOnly(today.Year, today.Month, 1);
         var m1 = m0.AddMonths(-1);
 
-        MonthStat Stat(DateOnly from)
+        MonthStat Stat(DateOnly from, int days = 0)
         {
-            var to = from.AddMonths(1);
+            var to = days > 0 ? from.AddDays(days) : from.AddMonths(1);
             var recs = customers.SelectMany(c => c.Records).Where(r => r.Date >= from && r.Date < to).ToList();
             var pays = customers.SelectMany(c => c.Payments).Where(p => p.Date >= from && p.Date < to);
             return new MonthStat
@@ -55,6 +55,7 @@ public class HomeController : Controller
             MonthTitle = Fmt.Month(today.Year, today.Month),
             This = Stat(m0),
             Prev = Stat(m1),
+            Today = Stat(today, 1),
             KasaBakiye = kasa.Bakiye,
             TotalRest = rests.Sum(x => x.rest),
             TotalGoldRest = customers.Sum(c => LedgerService.GoldRemaining(c)),
@@ -62,9 +63,61 @@ public class HomeController : Controller
             DebtorCount = rests.Count(x => x.rest > 0.004m),
             TopDebtors = rests.Where(x => x.rest > 0.004m).OrderByDescending(x => x.rest).Take(5).ToList(),
             Timeline = timeline.Take(200).ToList(),
-            Search = q
+            Search = q,
+            Recent = BuildRecent(customers, expenses)
         };
         return View(vm);
+    }
+
+    /// <summary>
+    /// HTML'deki renderHomeRecent() karşılığı: siparişler, ödemeler ve giderler tek listede,
+    /// en son eklenen/değiştirilen en üstte.
+    /// </summary>
+    static List<RecentItem> BuildRecent(List<Customer> customers, List<Expense> expenses)
+    {
+        var items = new List<RecentItem>();
+        foreach (var c in customers)
+        {
+            var cc = Ui.CustCode(c);
+            foreach (var r in c.Records)
+            {
+                var kind = Ui.RecKind(r);
+                items.Add(new RecentItem
+                {
+                    Ev = "rec", CustomerId = c.Id, RecordId = r.Id, CustName = c.Name, Date = r.Date,
+                    CreatedAt = r.CreatedAt, EditedAt = r.EditedAt,
+                    Image = r.ImagePath, Note = r.Note, Code = r.Code ?? "", CustCode = cc, Model = r.Model,
+                    Kind = kind, KindCls = Ui.RecKindCls(r),
+                    TlTag = kind, TlAmt = Fmt.Usd(r.Price)
+                });
+            }
+            foreach (var p in c.Payments)
+            {
+                if (p.ArchDevirYear != null) continue;
+                var isGr = p.PayType == OdemeTuru.Gram && (p.Gram ?? 0) > 0;
+                items.Add(new RecentItem
+                {
+                    Ev = "pay", CustomerId = c.Id, CustName = c.Name, Date = p.Date, CreatedAt = p.CreatedAt,
+                    Code = Ui.PayCode(p, c), CodeCls = Ui.PayCls(p), CustCode = cc, Model = Ui.PayMain(p),
+                    Kind = "Ödeme", Badge = Ui.PayBadge(p),
+                    TlTag = Ui.IsHurda(p) ? "Hurda" : p.PayType switch { OdemeTuru.Gram => "Has", OdemeTuru.Tl => "Nakit-₺", _ => "Nakit-$" },
+                    TlAmt = isGr ? "+" + Fmt.Gr(p.Gram) : "+" + Fmt.Usd(p.Amount),
+                    TlAmtSub = isGr ? Fmt.Usd(p.Amount) : (p.PayType == OdemeTuru.Tl && (p.Tl ?? 0) > 0 ? Fmt.Tl(p.Tl) : null)
+                });
+            }
+        }
+        foreach (var x in expenses)
+        {
+            var u = LedgerService.ExpenseUsd(x);
+            var label = LedgerService.ExpenseLabel(x);
+            items.Add(new RecentItem
+            {
+                Ev = "exp", CustName = label, Date = x.Date, CreatedAt = x.CreatedAt,
+                Model = string.IsNullOrWhiteSpace(x.Note) ? label : x.Note!.Trim(), Kind = "Gider", Badge = "−",
+                TlTag = label, TlAmt = "−" + (u != null ? Fmt.Usd(u) : Fmt.Tl(x.Amount)), TlAmtSub = u != null ? Fmt.Tl(x.Amount) : null
+            });
+        }
+        return items.OrderByDescending(i => i.CreatedAt).ToList();
     }
 
     [AllowAnonymous]

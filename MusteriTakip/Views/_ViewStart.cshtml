@@ -1,3 +1,5 @@
 @{
-    Layout = "_Layout";
+    // "X-Modal: 1" başlığıyla istenen sayfalar (formlar) yerleşimsiz döner;
+    // site.js bunları HTML'deki gibi açılır pencere olarak mevcut sayfanın üstünde gösterir.
+    Layout = Context.Request.Headers.ContainsKey("X-Modal") ? null : "_Layout";
 }

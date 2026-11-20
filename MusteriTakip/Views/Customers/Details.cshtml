@@ -1,169 +1,317 @@
 @model CustomerDetailsVm
 @{
+    // Görünüm referans musteritakip.html → #panelCustomer ile aynı yapıdadır.
     var c = Model.Customer;
     ViewData["Title"] = c.Name;
+    ViewData["ContentClass"] = "cust-mode";
     var t = Model.Totals;
+    var all = LedgerService.CustomerTotals(c);
     var here = Context.Request.Path + Context.Request.QueryString;
-    string Spec(decimal? v, int d) => v.HasValue ? v.Value.ToString("N" + d, Fmt.Tr) : "";
+    var records = Model.Records.Where(r => Model.KindFilter == null || Fmt.KindText(r.Kind) == Model.KindFilter).ToList();
+
+    // ---- Müşteri özeti (HTML: renderInsight) ----
+    var today = Dates.Today;
+    int? Days(DateOnly? d) => d is { } x ? Math.Max(0, today.DayNumber - x.DayNumber) : null;
+    var priced = c.Records.Where(r => r.Price != null).ToList();
+    var lr = priced.Count > 0 ? priced.Max(r => r.Date) : (DateOnly?)null;
+    var lp = c.Payments.Count > 0 ? c.Payments.Max(p => p.Date) : (DateOnly?)null;
+    int? dr = Days(lr), dp = Days(lp);
+    var ratio = all.Ciro > 0 ? Math.Min(100m, Math.Max(0m, all.Paid / all.Ciro * 100m)) : 0m;
+    decimal Sum(int from, int to) => priced.Where(r => Days(r.Date) is { } d && d >= from && d < to).Sum(r => r.Price ?? 0m);
+    var r90 = Sum(0, 90); var p90 = Sum(90, 180);
+    decimal? trend = p90 != 0 ? (r90 - p90) / p90 * 100m : null;
+    var avg = priced.Count > 0 ? all.Ciro / priced.Count : 0m;
+    string pillCls, pillTxt, ciTxt;
+    string Ago(int d) => d == 0 ? "bugün" : d + " gün önce";
+    if (all.Rest <= 0.005m) { pillCls = "ok"; pillTxt = "Hesap temiz"; ciTxt = all.Rest < -0.005m ? "Ödemesi borcundan fazla; alacaklı görünüyor." : "Tüm siparişlerin ödemesi tamamlanmış."; }
+    else if (dp == null) { pillCls = "bad"; pillTxt = "Takip önerilir"; ciTxt = "Henüz ödeme alınmamış."; }
+    else if (dp > 45) { pillCls = "bad"; pillTxt = "Takip önerilir"; ciTxt = dp + " gündür ödeme gelmedi, kalan " + Fmt.Usd(all.Rest) + "."; }
+    else if (dp > 20) { pillCls = "warn"; pillTxt = "Yakında hatırlat"; ciTxt = "Son ödeme " + Ago(dp.Value) + ", kalan " + Fmt.Usd(all.Rest) + "."; }
+    else { pillCls = "info"; pillTxt = "Düzenli"; ciTxt = "Son ödeme " + Ago(dp.Value) + ", kalan " + Fmt.Usd(all.Rest) + "."; }
+    string F(int? d) => d == null ? "—" : Ago(d.Value);
+    var hasAny = c.Records.Count > 0 || c.Payments.Count > 0;
+    // Kur Riski (HTML: fxData) — siparişlerin kayıt günü kurlarının fiyat ağırlıklı ortalaması
+    var fxRecs = c.Records.Where(r => (r.SnapUsdTry ?? 0) > 0 && (r.Price ?? 0) > 0).ToList();
+    var fxW = fxRecs.Sum(r => r.Price!.Value);
+    var fxRate = fxW > 0 ? fxRecs.Sum(r => r.Price!.Value * r.SnapUsdTry!.Value) / fxW : 0m;
+    var waUrl = "https://wa.me/" + Fmt.WaPhone(c.Phone) + "?text=" + Uri.EscapeDataString(Model.WhatsAppText);
+    const string BackSvg = "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M15 5l-7 7 7 7\"/></svg>";
 }
 
-<div class="screen-actions">
-    <span class="back-pair"><a class="btn secondary" asp-action="Index">← Müşteriler</a></span>
-    <span class="cust-head-btns">
-        <a class="btn secondary" asp-action="Edit" asp-route-id="@c.Id">✎ Düzenle</a>
-        <a class="btn secondary wa-btn" target="_blank" rel="noopener" href="https://wa.me/@Fmt.WaPhone(c.Phone)?text=@Uri.EscapeDataString(Model.WhatsAppText)">WhatsApp ile hesap özeti</a>
-        <a class="btn secondary" asp-action="Statement" asp-route-id="@c.Id" target="_blank">Hesap ekstresi / PDF</a>
-    </span>
-</div>
-
-<div class="active-cust">
-    <div class="name-row">
-        <div class="avatar">
-            @if (c.ImagePath != null)
-            {
-                <img src="@c.ImagePath" alt="" data-zoom data-caption="@c.Name" />
-            }
-            else
-            {
-                <span class="ini-av" style="background:@Fmt.AvatarColor(c.Name)">@Fmt.Initials(c.Name)</span>
-            }
-        </div>
-        <h2>@c.Name</h2>
-        @if (c.Code != null)
-        {
-            <span class="kind-tag">@c.Code</span>
-        }
-        <span class="phone">@c.Phone @(c.Email != null ? " · " + c.Email : "")</span>
-    </div>
-
-    <div class="cust-toolbar">
-        <div class="rec-btns">
-            <a class="btn" asp-controller="Orders" asp-action="Create" asp-route-customerId="@c.Id">+ Yeni Sipariş</a>
-            <a class="btn secondary" asp-controller="Payments" asp-action="Create" asp-route-customerId="@c.Id">+ Ödeme Ekle</a>
-            <a class="btn secondary" asp-controller="Orders" asp-action="AddDebt" asp-route-customerId="@c.Id">+ Borç Ekle</a>
-        </div>
-        <form method="get" class="kind-row inline">
-            <input type="hidden" name="tab" value="@Model.Tab" />
-            <label for="kind">İşlem türü</label>
-            <select id="kind" name="kind" onchange="this.form.submit()">
-                <option value="" selected="@(string.IsNullOrEmpty(Model.KindFilter))">Tümü</option>
-                <option value="Altın" selected="@(Model.KindFilter == "Altın")">Altın</option>
-                <option value="Kalıp" selected="@(Model.KindFilter == "Kalıp")">Kalıp</option>
-            </select>
-        </form>
-    </div>
-
-    <div class="kasa-stats cust-stats">
-        <div class="kasa-stat"><span class="label">Ciro</span><span class="amount">@Fmt.Usd(t.Ciro)</span></div>
-        <div class="kasa-stat"><span class="label">Alınan Ödeme</span><span class="amount">@Fmt.Usd(t.Paid)</span></div>
-        <div class="kasa-stat result"><span class="label">Kalan Bakiye</span><span class="amount @(t.Rest > 0.004m ? "neg" : "")">@Fmt.Usd(t.Rest)</span></div>
-    </div>
-    <div class="kasa-stats cust-stats gold-stats">
-        <div class="kasa-stat"><span class="label">Toplam Altın Ciro</span><span class="amount">@Fmt.Gr(t.GoldTotal)</span></div>
-        <div class="kasa-stat"><span class="label">Alınan Altın Ödeme</span><span class="amount">@Fmt.Gr(t.GoldPaid)</span></div>
-        <div class="kasa-stat result"><span class="label">Kalan Altın Bakiye</span><span class="amount">@Fmt.Gr(t.GoldRest)</span><span class="sub gold-val" data-gold-value="@Fmt.Input(t.GoldRest)"></span></div>
-    </div>
-
-    <form method="post" asp-action="SaveNote" asp-route-id="@c.Id" class="note-form">
-        <textarea name="note" class="cust-note" rows="1" placeholder="Müşteri notu…">@c.Note</textarea>
-        <button class="btn secondary sm" type="submit">Notu kaydet</button>
-    </form>
-
-    <div class="seg-tabs">
-        <a class="@(Model.Tab == "records" ? "on" : "")" asp-action="Details" asp-route-id="@c.Id" asp-route-kind="@Model.KindFilter">Sipariş geçmişi (@Model.Records.Count)</a>
-        <a class="@(Model.Tab == "cari" ? "on" : "")" asp-action="Details" asp-route-id="@c.Id" asp-route-tab="cari" asp-route-kind="@Model.KindFilter">Hesap hareketleri (@Model.History.Count)</a>
-    </div>
-
-    @if (Model.Tab == "records")
-    {
-        <div id="recordsList">
-            @if (Model.Records.Count == 0)
-            {
-                <div class="empty-note">Bu müşteri için henüz sipariş yok. “+ Yeni Sipariş” ile ilk siparişi ekleyin.</div>
-            }
-            @foreach (var r in Model.Records.Where(r => Model.KindFilter == null || Fmt.KindText(r.Kind) == Model.KindFilter))
-            {
-                var cost = LedgerService.RecordCost(r);
-                var profit = LedgerService.RecordProfit(r);
-                var gold = LedgerService.RecGoldOut(r);
-                <div class="rec-row">
-                    <div class="thumb">
-                        @if (r.ImagePath != null)
-                        {
-                            <img src="@r.ImagePath" alt="@r.Model" data-zoom data-caption="@(r.Code + " · " + r.Model)" />
-                        }
-                        else
-                        {
-                            <span class="ph">💍</span>
-                        }
-                    </div>
-                    <div class="rec-main">
-                        <div class="rec-top">
-                            <div class="model">
-                                @if (r.Code != null)
-                                {
-                                    <b class="code-chip">@r.Code</b>
-                                }
-                                @r.Model
-                                <span class="kind-tag @(r.Kind == IslemTuru.Kalip ? "k-kalip" : "")">@Fmt.KindText(r.Kind)</span>
-                                @if (!string.IsNullOrEmpty(r.Note))
-                                {
-                                    <span class="note-info" title="@r.Note">i</span>
-                                }
-                                @if (r.SnapDate != null)
-                                {
-                                    <div class="snap-note">Kayıt fiyatları: mum @Fmt.Num(r.SnapMumGrFiyat) $ · gümüş @Fmt.Num(r.SnapGumusGrFiyat) $ · altın işç. @Fmt.Num(r.SnapAltinGrFiyat) $@(r.SnapUsdTry > 0 ? " · kur " + Fmt.Rate(r.SnapUsdTry) : "")</div>
-                                }
-                            </div>
-                            <span class="date">@Fmt.Date(r.Date)</span>
-                            <div class="price-col">
-                                <span class="price">@Fmt.Usd(r.Price)</span>
-                                @if (profit != null)
-                                {
-                                    <span class="profit-sub">Maliyet @Fmt.Usd(cost) · Kâr <b class="@(profit < 0 ? "neg" : "")">@Fmt.Usd(profit)</b></span>
-                                }
-                            </div>
-                            <span class="row-actions">
-                                <a class="dup" asp-controller="Orders" asp-action="Duplicate" asp-route-id="@r.Id" title="Kopyala">⧉</a>
-                                <a class="edit" asp-controller="Orders" asp-action="Edit" asp-route-id="@r.Id" title="Düzenle">✎</a>
-                                <form method="post" asp-controller="Orders" asp-action="Delete" asp-route-id="@r.Id" asp-route-returnUrl="@here" data-confirm="Bu sipariş çöp kutusuna taşınsın mı?"><button class="del" title="Sil">✕</button></form>
-                            </span>
-                        </div>
-                        <div class="spec-wrap">
-                            <table class="spec-table">
-                                <tr><th>Mum (gr)</th><th>Mum ($)</th><th>Gümüş (gr)</th><th>Gümüş ($)</th><th>Altın (gr)</th><th>Milyem</th><th>Çıkış (gr)</th><th>Altın ($)</th><th>Çizim ($)</th><th>Masraf ($)</th></tr>
-                                <tr>
-                                    <td>@Spec(r.MumGram, 3)</td><td>@Spec(r.MumIscilik, 2)</td>
-                                    <td>@Spec(r.GumusGram, 3)</td><td>@Spec(r.GumusUsd, 2)</td>
-                                    <td>@Spec(r.AltinGram, 2)</td><td>@Spec(r.AltinMilyem, 0)</td><td>@(gold > 0 ? gold.ToString("N3", Fmt.Tr) : "")</td><td>@Spec(r.AltinIscilik, 2)</td>
-                                    <td>@Spec(r.Cizim, 2)</td>
-                                    <td title="@(string.Join(", ", r.Expenses.Select(e => e.Description + " " + Fmt.Usd(e.Amount))))">@(r.Expenses.Count > 0 ? Fmt.Num(LedgerService.ExpenseTotal(r)) : "")</td>
-                                </tr>
-                            </table>
-                        </div>
-                    </div>
+<div class="home-panel active" id="panelCustomer">
+    <div class="screen-actions">
+        <span class="back-pair"><a class="btn secondary" id="backHomeBtn" asp-controller="Home" asp-action="Index">← Ana Sayfaya Dön</a><button type="button" class="btn secondary back-step" title="Geri: önceki sayfaya dön" aria-label="Geri" onclick="history.back()">@Html.Raw(BackSvg)</button></span>
+        <span class="cust-head-btns">
+            <span class="more-wrap">
+                <button class="btn secondary" id="custMoreBtn" type="button" aria-haspopup="true">⋯ İşlemler</button>
+                <div class="more-menu" id="custMoreMenu" hidden>
+                    <a href="@waUrl" target="_blank" rel="noopener">WhatsApp ile hesap özeti</a>
+                    <a asp-action="Statement" asp-route-id="@c.Id" target="_blank">Hesap ekstresi / PDF</a>
+                    <a asp-action="Edit" asp-route-id="@c.Id">Müşteri bilgilerini düzenle</a>
+                    <form method="post" asp-action="Delete" asp-route-id="@c.Id" data-confirm="&quot;@c.Name&quot; adlı müşteriyi ve tüm kayıtlarını silmek istediğinize emin misiniz? 30 gün içinde Ayarlar → Çöp Kutusu'ndan geri alabilirsiniz."><button type="submit" class="more-danger">Müşteriyi sil…</button></form>
                 </div>
-            }
-        </div>
-    }
-    else
-    {
-        <div class="records payment-section">
-            <div class="cari-actions">
-                <a class="qa" asp-controller="Payments" asp-action="Create" asp-route-customerId="@c.Id"><span class="qa-i k-purple">＄</span>Ödeme Ekle</a>
-                <a class="qa" asp-controller="Orders" asp-action="AddDebt" asp-route-customerId="@c.Id"><span class="qa-i k-red">＋</span>Borç Ekle</a>
-                <a class="qa" asp-action="Statement" asp-route-id="@c.Id" target="_blank"><span class="qa-i k-green">⎙</span>Ekstre</a>
+            </span>
+            <form method="post" asp-action="Delete" asp-route-id="@c.Id" class="inline" data-confirm="&quot;@c.Name&quot; adlı müşteriyi silmek istediğinize emin misiniz?"><button class="btn danger" id="deleteCustBtn" type="submit">Müşteriyi sil</button></form>
+        </span>
+    </div>
+
+    <div class="active-cust@(Model.Tab == "cari" ? " in-cari" : "")" id="activeCustBox">
+        <div class="name-row">
+            <div class="avatar" id="activeCustAvatar">@if (c.ImagePath != null)
+                {<img src="@c.ImagePath" alt="" data-zoom data-caption="@c.Name">}
+                else
+                {<span class="ini-av" style="background:@Ui.AvColor(c.Name)">@Ui.Initials(c.Name)</span>}</div>
+            <div class="name-col">
+                <div class="name-top"><h2 id="activeCustName">@c.Name</h2>@if (all.Rest > 0.005m)
+                    {<span class="bal-badge debt" id="custBalBadge" hidden>Borç @Fmt.Usd(all.Rest)</span>}</div>
+                <span class="phone" id="activeCustPhone">@c.Phone</span>
+                <span class="cust-email" id="activeCustEmail">@c.Email</span>
             </div>
-            <div id="historyList">
-                @if (Model.History.Count == 0)
-                {
-                    <div class="empty-note">Henüz borç veya ödeme yok.</div>
-                }
-                @foreach (var m in Model.History)
-                {
-                    <partial name="_MovementRow" model="m" view-data='new ViewDataDictionary(ViewData) { ["ShowCustomer"] = false, ["ReturnUrl"] = here }' />
-                }
+            <div class="phone-col">
+                <form method="get" class="kind-row cust-kind-row">
+                    <label for="custBalKind">İşlem türü</label>
+                    <select id="custBalKind" name="kind" onchange="this.form.submit()">
+                        <option value="" selected="@(string.IsNullOrEmpty(Model.KindFilter))">Tümü</option>
+                        <option value="Altın" selected="@(Model.KindFilter == "Altın")">Altın</option>
+                        <option value="Kalıp" selected="@(Model.KindFilter == "Kalıp")">Kalıp</option>
+                    </select>
+                </form>
             </div>
         </div>
-    }
+        <div class="cust-toolbar">
+            <div class="rec-btns">
+                <a class="btn save-record" id="newRecordBtn" data-modal asp-controller="Orders" asp-action="Create" asp-route-customerId="@c.Id">+ Yeni Sipariş</a>
+                <button type="button" class="btn secondary save-record" id="openCariBtn">Hesap hareketleri</button>
+                <a class="btn secondary save-record" id="debtAddBtn" asp-controller="Orders" asp-action="AddDebt" asp-route-customerId="@c.Id">+ Borç Ekle</a>
+            </div>
+            <div class="cust-tools">
+                <a class="btn secondary sm wa-btn" id="waBtn" href="@waUrl" target="_blank" rel="noopener">WhatsApp ile hesap özeti</a>
+                <a class="btn secondary sm" id="stmtBtn" asp-action="Statement" asp-route-id="@c.Id" target="_blank">Hesap ekstresi / PDF</a>
+            </div>
+        </div>
+        @if (hasAny)
+        {
+            <div class="cust-insight on" id="custInsight" aria-live="polite">
+                <div class="ci-top"><span class="ci-pill @pillCls">@pillTxt</span><span class="ci-txt">@ciTxt</span></div>
+                <div class="ci-grid">
+                    <div class="ci-c"><small>Ödeme oranı</small><b>%@Math.Round(ratio)</b><div class="ci-bar" role="img" aria-label="Ödeme oranı yüzde @Math.Round(ratio)"><i style="width:@Math.Round(ratio)%"></i></div></div>
+                    <div class="ci-c"><small>Son sipariş</small><b>@F(dr)</b></div>
+                    <div class="ci-c"><small>Son ödeme</small><b>@F(dp)</b></div>
+                    <div class="ci-c"><small>Ortalama sipariş</small><b>@Fmt.Usd(avg)</b></div>
+                    <div class="ci-c"><small>Son 3 ay ciro</small><b>@Fmt.Usd(r90)</b>@if (trend != null)
+                        {<small>@(trend >= 0 ? "▲" : "▼") önceki 3 aya göre @Math.Abs(trend.Value).ToString("0")%</small>}</div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="cust-insight" id="custInsight" aria-live="polite"></div>
+        }
+        <div id="custBalanceBlock" style="@(Model.Tab == "cari" ? "" : "display:none;")">
+            <div class="kasa-stats cust-stats">
+                <div class="kasa-stat"><span class="label">Ciro</span><span class="amount" id="activeCustTotal">@Fmt.Usd(t.Ciro)</span></div>
+                <div class="kasa-stat"><span class="label">Tahsilat</span><span class="amount" id="activeCustPaid">@Fmt.Usd(t.Paid)</span></div>
+                <div class="kasa-stat result"><span class="label">Kalan Bakiye</span><span class="amount" id="activeCustRemaining">@Fmt.Usd(t.Rest)</span></div>
+            </div>
+            <div class="kasa-stats cust-stats gold-stats">
+                <div class="kasa-stat"><span class="label">Toplam Altın Ciro</span><span class="amount" id="activeCustGoldTotal">@Fmt.Gr(t.GoldTotal)</span></div>
+                <div class="kasa-stat"><span class="label">Alınan Altın Ödeme</span><span class="amount" id="activeCustGoldPaid">@Fmt.Gr(t.GoldPaid)</span></div>
+                <div class="kasa-stat result"><span class="label">Kalan Altın Bakiye</span><span class="amount" id="activeCustGoldRemaining">@Fmt.Gr(t.GoldRest)</span><span class="sub gold-val" id="activeCustGoldValue" data-gold-value="@Fmt.Input(t.GoldRest)"></span></div>
+            </div>
+        </div>
+        <div class="cust-count" id="activeCustCount">@records.Count kayıt</div>
+
+        <div class="sub-view-slot">
+            @* ---------- Sipariş geçmişi ---------- *@
+            <div class="sub-view@(Model.Tab == "records" ? " active" : "")" id="recordsSubView">
+                <div class="records">
+                    <div class="records-head"><h3>Sipariş geçmişi <span class="rec-count" id="recCountInline">@records.Count</span></h3></div>
+                    <div id="recSelBar" class="hist-selbar">
+                        <label class="hsel"><input type="checkbox" id="recSelAll" aria-label="Tümünü seç"> <span>Tümünü seç</span></label>
+                        <span id="recSelCnt" class="hsel-cnt"></span>
+                        <div class="hs-filter"><input type="text" id="recSearch" placeholder="Model, kod, tarih, tür…" aria-label="Ara" title="Virgülle birden fazla arama yapabilirsiniz" autocomplete="off"></div>
+                    </div>
+                    <div id="recordsList">
+                        @foreach (var r in records)
+                        {
+                            var gc = Ui.GoldCalc(r);
+                            var kind = Fmt.KindText(r.Kind);
+                            var s = (r.Model + " " + r.Code + " " + kind + " " + Fmt.Date(r.Date) + " " + r.Date.ToString("yyyy-MM-dd")).ToLower(Fmt.Tr);
+                            <div class="rec-row has-detail" id="rec-@r.Id" data-s="@s">
+                                <label class="hsel hsel-cell"><input type="checkbox" class="hsel-box" data-key="price:@r.Id" aria-label="Siparişi seç"></label>
+                                <div class="rec-date0">@Fmt.Date(r.Date)</div>
+                                <div class="thumb@(r.ImagePath != null ? " clickable" : "")" data-note="@r.Note">@if (r.ImagePath != null)
+                                    {<img src="@r.ImagePath" alt="" data-zoom data-caption="@(r.Code + " · " + r.Model)">}
+                                    else
+                                    {@Html.Raw(Ui.PhRing)}</div>
+                                <div class="rec-main">
+                                    <div class="rec-top">
+                                        <div class="model rec-model">
+                                            <div class="mcode-col">@if (!string.IsNullOrEmpty(r.Code))
+                                                {<span class="mcode">@r.Code</span>}
+                                                else
+                                                {<span class="mcode-none">—</span>}</div>
+                                            <div class="model-body">
+                                                <div class="model-line">
+                                                    <span class="mname" title="@r.Model">@r.Model</span>
+                                                    <span class="mk">@if (kind != "")
+                                                        {<span class="kind-tag@(r.Kind == IslemTuru.Kalip ? " k-kalip" : "")">@kind</span>}</span>
+                                                    <span class="mi">@if (!string.IsNullOrWhiteSpace(r.Note))
+                                                        {<button type="button" class="note-info" data-note="@r.Note" aria-label="Notu göster" title="@r.Note">i</button>}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="kalip-info"></div>
+                                        <div class="date">@Fmt.Date(r.Date)</div>
+                                        <div class="price-col"><div class="pc-in"><div class="price">@Fmt.Usd(r.Price)</div>@if (gc != null)
+                                            {<div class="gold-calc" title="Altın gr × milyem = altın çıkış">@gc</div>}</div></div>
+                                        <div class="row-actions">
+                                            <button type="button" class="edit" data-modal data-href="@Url.Action("Edit", "Orders", new { id = r.Id })" title="Düzenle" aria-label="Düzenle">✎</button>
+                                            <form method="post" asp-controller="Orders" asp-action="Delete" asp-route-id="@r.Id" asp-route-returnUrl="@here" class="inline" data-confirm="Bu sipariş çöp kutusuna taşınsın mı?"><button class="del" type="submit" title="Sil" aria-label="Sil">✕</button></form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    @if (records.Count == 0)
+                    {
+                        <div class="empty-note" id="recordsEmptyNote">Bu müşteri için henüz sipariş yok. “+ Yeni Sipariş” ile ilk siparişi ekleyin.</div>
+                    }
+                </div>
+            </div>
+
+            @* ---------- Hesap hareketleri ---------- *@
+            <div class="sub-view@(Model.Tab == "cari" ? " active" : "")" id="cariSubView">
+                <div class="records payment-section">
+                    <div class="records-head"><h3>Hesap hareketleri: fiyat ve ödeme geçmişi</h3><button type="button" class="btn secondary sm" id="closeCariBtn">← Kayıtlara Dön</button></div>
+                    <div class="cari-actions">
+                        <a class="qa" id="openPayModalBtn" asp-controller="Payments" asp-action="Create" asp-route-customerId="@c.Id"><span class="qa-i k-purple"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2" /><circle cx="12" cy="12.5" r="2.5" /></svg></span>Ödeme Ekle</a>
+                        <a class="qa" id="debtAddBtn2" asp-controller="Orders" asp-action="AddDebt" asp-route-customerId="@c.Id"><span class="qa-i k-orange"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg></span>Borç Ekle</a>
+                        <button type="button" class="qa" id="fxRiskBtn" title="Açık borcun kur karşılığı" aria-label="Açık borcun kur karşılığı"><span class="qa-i k-orange" style="font-size:1.25rem;line-height:1">💱</span><span class="qa-t">Kur Riski</span></button>
+                    </div>
+                    <div id="histSelBar" class="hist-selbar" @(Model.History.Count == 0 ? "hidden" : null)>
+                        <label class="hsel"><input type="checkbox" id="histSelAll" aria-label="Tümünü seç"> <span>Tümünü seç</span></label>
+                        <span id="histSelCnt" class="hsel-cnt"></span>
+                        <div class="hs-filter">
+                            <input type="text" id="histSearch" placeholder="Borç, ödeme, model, tarih, tür…" aria-label="Ara" title="Virgülle birden fazla arama yapabilirsiniz" autocomplete="off">
+                            <select id="histPeriod" aria-label="Dönem">
+                                <option value="">Dönem: Tümü</option>
+                                <option value="m0">Bu ay</option>
+                                <option value="m1">Geçen ay</option>
+                                <option value="y0">Bu yıl</option>
+                                <option value="y1">Geçen yıl</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="historyList">
+                        @foreach (var m in Model.History.Where(h => h.Type != MovementType.Expense && (h.Type == MovementType.Payment || h.Rec?.Price != null)))
+                        {
+                            <partial name="_HistRow" model="m" view-data='new ViewDataDictionary(ViewData) { ["Mode"] = "cust" }' />
+                        }
+                    </div>
+                    <div class="empty-note" id="historyEmptyNote" style="@(Model.History.Count == 0 ? "" : "display:none;")"><div class="es"><div class="es-t">Henüz hareket yok</div><div class="es-s">Sipariş ve ödeme ekledikçe hesap burada oluşur.</div></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+@* ---------- Kur Riski penceresi (HTML: #fxModal) ---------- *@
+<div class="confirm-modal" id="fxModal" data-open="@Fmt.Input(all.Rest)" data-rate="@Fmt.Input(fxRate)" data-name="@c.Name"><div class="confirm-card pay-card order-card yn-card" role="dialog" aria-modal="true" style="max-width:720px;width:96vw">
+    <div class="pay-head"><h2 id="fxTitle">Kur Riski · @c.Name</h2><button type="button" class="x-close" id="fxX" aria-label="Kapat">✕</button></div>
+    <div class="yn-rate"><label for="fxNow">Bugünkü $/₺ kuru</label><input type="number" step="0.01" id="fxNow" inputmode="decimal"><span class="yn-note" id="fxSrc" style="margin:0"></span></div>
+    <div class="yn-stats" id="fxStats"></div>
+    <div class="yn-wrap"><table class="yn-tbl"><thead><tr><th>Müşteri</th><th class="r">Açık borç</th><th class="r">Kayıt günü kuru</th><th class="r">Kayıt günü ₺</th><th class="r">Bugün ₺</th><th class="r">Fark</th></tr></thead><tbody id="fxBody"></tbody></table></div>
+    <p class="yn-note">Açık dolar borcunun TL karşılığı: kayıtların yapıldığı günkü kurla (ağırlıklı ortalama) ve bugünkü kurla. Kur yükseldiyse alacağınızın TL değeri artmıştır. Kayıt günü kuru olmayan eski kayıtlar hesaba katılmaz.</p>
+</div></div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var $ = function (id) { return document.getElementById(id); };
+            // ---- Kur Riski ----
+            var fx = $('fxModal');
+            var tl = function (v) { return (Number(v) || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺'; };
+            var money = function (v) { return (Number(v) || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' $'; };
+            function fxRender() {
+                var now = parseFloat($('fxNow').value) || 0, open = parseFloat(fx.dataset.open) || 0, rate = parseFloat(fx.dataset.rate) || 0;
+                var body = $('fxBody');
+                if (open <= 0.005) { $('fxStats').innerHTML = ''; body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--ink-soft);padding:18px">Açık dolar borcu yok.</td></tr>'; return; }
+                var then = rate > 0 ? open * rate : 0, nw = rate > 0 ? open * now : 0, diff = nw - then;
+                $('fxStats').innerHTML = '<div><small>Kayıt günü karşılığı</small><b>' + tl(then) + '</b></div><div><small>Bugünkü karşılığı</small><b>' + tl(nw) + '</b></div><div><small>Kur etkisi</small><b class="' + (diff < 0 ? 'yn-neg' : 'yn-pos') + '">' + (diff > 0 ? '+' : '') + tl(diff) + '</b></div>';
+                var tr = document.createElement('tr');
+                tr.innerHTML = '<td></td><td class="r"></td><td class="r"></td><td class="r"></td><td class="r"></td><td class="r"><b></b></td>';
+                tr.children[0].textContent = fx.dataset.name; tr.children[1].textContent = money(open);
+                if (rate > 0) {
+                    tr.children[2].textContent = rate.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    tr.children[3].textContent = tl(then); tr.children[4].textContent = tl(nw);
+                    tr.querySelector('b').textContent = (diff > 0 ? '+' : '') + tl(diff); tr.children[5].className = 'r ' + (diff < 0 ? 'yn-neg' : 'yn-pos');
+                } else { for (var i = 2; i < 6; i++) tr.children[i].textContent = '—'; }
+                body.innerHTML = ''; body.appendChild(tr);
+            }
+            $('fxRiskBtn').addEventListener('click', function () {
+                var lt = window.__mtLT, r = lt && lt.usd && lt.usd[1] > 0 ? lt.usd[1] : 0;
+                $('fxNow').value = r ? (Math.round(r * 100) / 100).toFixed(2) : '';
+                $('fxSrc').textContent = r ? '(üst çubuk · Satış)' : '(canlı kur alınamadı)';
+                fxRender(); fx.classList.add('open');
+            });
+            $('fxNow').addEventListener('input', fxRender);
+            $('fxX').addEventListener('click', function () { fx.classList.remove('open'); });
+            fx.addEventListener('click', function (e) { if (e.target === fx) fx.classList.remove('open'); });
+            // Sipariş geçmişi ⇄ Hesap hareketleri (HTML'deki gibi sayfa yenilemeden)
+            function show(tab) {
+                $('recordsSubView').classList.toggle('active', tab !== 'cari');
+                $('cariSubView').classList.toggle('active', tab === 'cari');
+                $('activeCustBox').classList.toggle('in-cari', tab === 'cari');
+                $('custBalanceBlock').style.display = tab === 'cari' ? '' : 'none';
+                if (window.mtFit) window.mtFit();
+                var u = new URL(location.href); if (tab === 'cari') u.searchParams.set('tab', 'cari'); else u.searchParams.delete('tab');
+                history.replaceState(null, '', u);
+            }
+            $('openCariBtn').addEventListener('click', function () { show('cari'); });
+            $('closeCariBtn').addEventListener('click', function () { show('records'); });
+            // ⋯ İşlemler menüsü
+            var mb = $('custMoreBtn'), mm = $('custMoreMenu');
+            mb.addEventListener('click', function (e) { e.stopPropagation(); mm.hidden = !mm.hidden; });
+            document.addEventListener('click', function (e) { if (!mm.contains(e.target)) mm.hidden = true; });
+            // Anlık arama (virgülle birden fazla terim)
+            function filter(inp, list, extra) {
+                var q = inp.value.toLocaleLowerCase('tr-TR').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+                list.querySelectorAll('[data-s]').forEach(function (r) {
+                    r.hidden = !(q.every(function (t) { return r.dataset.s.indexOf(t) >= 0; }) && (!extra || extra(r)));
+                });
+            }
+            $('recSearch').addEventListener('input', function () { filter($('recSearch'), $('recordsList')); });
+            // Dönem filtresi (bu ay, geçen ay, bu yıl, geçen yıl)
+            function inPeriod(r) {
+                var p = $('histPeriod').value; if (!p) return true;
+                var d = new Date(), y = d.getFullYear(), mo = d.getMonth(), from, to;
+                if (p === 'm0') { from = new Date(y, mo, 1); to = new Date(y, mo + 1, 1); }
+                else if (p === 'm1') { from = new Date(y, mo - 1, 1); to = new Date(y, mo, 1); }
+                else if (p === 'y0') { from = new Date(y, 0, 1); to = new Date(y + 1, 0, 1); }
+                else { from = new Date(y - 1, 0, 1); to = new Date(y, 0, 1); }
+                var x = new Date(r.dataset.d + 'T00:00:00'); return x >= from && x < to;
+            }
+            function hf() { filter($('histSearch'), $('historyList'), inPeriod); }
+            $('histSearch').addEventListener('input', hf); $('histPeriod').addEventListener('change', hf);
+            // Seçim kutuları: "Tümünü seç" ve sayaç
+            [['recSelAll', 'recordsList', 'recSelCnt'], ['histSelAll', 'historyList', 'histSelCnt']].forEach(function (x) {
+                var all = $(x[0]), list = $(x[1]), cnt = $(x[2]);
+                function upd() {
+                    var boxes = list.querySelectorAll('.hsel-box'), n = list.querySelectorAll('.hsel-box:checked').length;
+                    all.checked = boxes.length > 0 && n === boxes.length; all.indeterminate = n > 0 && !all.checked;
+                    cnt.textContent = n ? n + ' kayıt seçili' : '';
+                }
+                all.addEventListener('change', function () { list.querySelectorAll('.hsel-box').forEach(function (b) { if (!b.closest('[hidden]')) b.checked = all.checked; }); upd(); });
+                list.addEventListener('change', function (e) { if (e.target.classList.contains('hsel-box')) upd(); });
+            });
+            // Not "i" düğmesi
+            document.addEventListener('click', function (e) { var b = e.target.closest('.note-info'); if (b) { e.stopPropagation(); alert(b.dataset.note); } });
+            // Ana sayfadan bir siparişe gelindiyse onu göster
+            if (location.hash && location.hash.indexOf('#rec-') === 0) {
+                var el = document.querySelector(location.hash); if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('flash-row'); }
+            }
+        })();
+    </script>
+}

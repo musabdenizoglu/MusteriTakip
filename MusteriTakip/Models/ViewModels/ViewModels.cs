@@ -37,6 +37,7 @@ public class DashboardVm
     public string MonthTitle { get; set; } = "";
     public MonthStat This { get; set; } = new();
     public MonthStat Prev { get; set; } = new();
+    public MonthStat Today { get; set; } = new();
     public decimal KasaBakiye { get; set; }
     public decimal TotalRest { get; set; }
     public decimal TotalGoldRest { get; set; }
@@ -45,6 +46,34 @@ public class DashboardVm
     public List<(Customer c, decimal rest)> TopDebtors { get; set; } = new();
     public List<Movement> Timeline { get; set; } = new();
     public string? Search { get; set; }
+    /// <summary>Ana sayfa "Son Eklenen Kayıtlar" (sipariş + ödeme + gider, en yeni üstte).</summary>
+    public List<RecentItem> Recent { get; set; } = new();
+}
+
+/// <summary>Ana sayfa listesindeki bir satır (HTML: homeRecentAllItems).</summary>
+public class RecentItem
+{
+    /// <summary>"rec" sipariş/borç, "pay" ödeme, "exp" gider.</summary>
+    public string Ev { get; set; } = "rec";
+    public int? CustomerId { get; set; }
+    public int? RecordId { get; set; }
+    public string CustName { get; set; } = "";
+    public DateOnly Date { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? EditedAt { get; set; }
+    public string? Image { get; set; }
+    public string? Note { get; set; }
+    public string Code { get; set; } = "";
+    public string CodeCls { get; set; } = "";
+    public string CustCode { get; set; } = "";
+    public string Model { get; set; } = "";
+    public string Kind { get; set; } = "";
+    public string KindCls { get; set; } = "";
+    public string Badge { get; set; } = "";
+    // Zaman çizgisi görünümü
+    public string TlTag { get; set; } = "";
+    public string TlAmt { get; set; } = "";
+    public string? TlAmtSub { get; set; }
 }
 
 // ---------------- Müşteriler ----------------
