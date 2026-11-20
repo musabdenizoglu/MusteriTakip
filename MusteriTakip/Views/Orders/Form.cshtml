@@ -1,0 +1,110 @@
+@model OrderFormVm
+@{
+    var isNew = Model.Id == null;
+    ViewData["Title"] = isNew ? "Yeni Sipariş" : "Siparişi Düzenle";
+    var exps = Model.Expenses.Count > 0 ? Model.Expenses : new List<OrderExpenseVm> { new() };
+}
+<span class="back-pair"><a class="btn secondary" asp-controller="Customers" asp-action="Details" asp-route-id="@Model.CustomerId">← @Model.CustomerName</a></span>
+
+<div class="card rec-card">
+    <div class="pay-head"><h2>@ViewData["Title"]</h2></div>
+    <p class="pay-cust">@Model.CustomerName</p>
+
+    <form method="post" asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@Model.Id" class="record-form" id="orderForm"
+          data-order-form
+          data-set-mum="@Fmt.Input(Model.SetMum)" data-set-gumus="@Fmt.Input(Model.SetGumus)" data-set-altin="@Fmt.Input(Model.SetAltin)"
+          data-brand="@Model.Brand">
+        <div asp-validation-summary="All" class="error full"></div>
+        <input type="hidden" asp-for="CustomerId" />
+        <input type="hidden" asp-for="LiveUsdTry" data-live="usd" />
+        <input type="hidden" asp-for="LiveGramAltinTl" data-live="gold" />
+
+        <div class="upload-btn">
+            <label class="thumb big" for="recordImage" data-thumb>
+                @if (Model.ExistingImage != null)
+                {
+                    <img src="@Model.ExistingImage" alt="" />
+                }
+                else
+                {
+                    <span>＋</span>
+                }
+            </label>
+            <input type="file" id="recordImage" accept="image/*" data-image-input="ImageData" data-max="1600" data-watermark />
+            <input type="hidden" asp-for="ImageData" />
+            <span class="lbl">Model resmi yükle</span>
+            <label class="cam-btn" for="recordCamera">📷 Fotoğraf çek</label>
+            <input type="file" id="recordCamera" accept="image/*" capture="environment" hidden data-image-input="ImageData" data-max="1600" data-watermark />
+            @if (Model.ExistingImage != null)
+            {
+                <label class="chk"><input type="checkbox" asp-for="RemoveImage" /> Resmi kaldır</label>
+            }
+            <span class="field-hint">Resme “@Model.Brand” ve model kodu filigranı eklenir.</span>
+        </div>
+
+        <div class="field code-field">
+            <label>Müşteri kodu – Model no</label>
+            <div class="code-pair">
+                <input asp-for="CustCode" class="upper" maxlength="3" placeholder="—" aria-label="Müşteri kodu" data-code-cust />
+                <span class="code-dash">-</span>
+                <input asp-for="ModelNo" inputmode="numeric" maxlength="5" placeholder="0001" aria-label="Model no" data-code-no />
+            </div>
+        </div>
+        <div class="field grow">
+            <label asp-for="Model">Model adı</label>
+            <input asp-for="Model" class="upper" autocomplete="off" placeholder="Örn. Yüzük A12" required />
+        </div>
+        <div class="field">
+            <label asp-for="Date">Tarih</label>
+            <input type="date" asp-for="Date" />
+        </div>
+
+        <div class="rec-specs">
+            <div class="wrow">
+                <div class="wcell"><label asp-for="MumGram">Mum (gr)</label><input asp-for="MumGram" type="number" min="0" step="0.001" placeholder="0,000" data-calc="mumGr" /></div>
+                <div class="wcell"><label asp-for="MumIscilik">Mum ($)</label><input asp-for="MumIscilik" type="number" min="0" step="0.01" placeholder="0,00" data-calc="mumUsd" /></div>
+                <div class="wsep"></div>
+                <div class="wcell"><label asp-for="GumusGram">Gümüş (gr)</label><input asp-for="GumusGram" type="number" min="0" step="0.001" placeholder="0,000" data-calc="gumusGr" /></div>
+                <div class="wcell"><label asp-for="GumusUsd">Gümüş ($)</label><input asp-for="GumusUsd" type="number" min="0" step="0.01" placeholder="0,00" data-calc="gumusUsd" /></div>
+                <div class="wsep"></div>
+                <div class="wcell"><label asp-for="AltinGram">Altın (gr)</label><input asp-for="AltinGram" type="number" min="0" step="0.01" placeholder="0,00" data-calc="altinGr" /></div>
+                <div class="wcell"><label asp-for="AltinMilyem">Altın Milyem</label><input asp-for="AltinMilyem" type="number" min="0" max="1000" step="1" placeholder="585" data-calc="milyem" /></div>
+                <div class="wcell"><label asp-for="AltinCikis">Altın Çıkış (gr)</label><input asp-for="AltinCikis" type="number" min="0" step="0.001" placeholder="0,000" data-calc="cikis" /></div>
+                <div class="wcell"><label asp-for="AltinIscilik">Altın ($)</label><input asp-for="AltinIscilik" type="number" min="0" step="0.01" placeholder="0,00" data-calc="altinUsd" /></div>
+                <div class="wsep"></div>
+                <div class="wcell"><label asp-for="Cizim">Çizim ($)</label><input asp-for="Cizim" type="number" min="0" step="0.01" placeholder="0,00" data-calc="cizim" /></div>
+            </div>
+            <p class="field-hint" id="kindHint">Altın gr ve milyem girilirse sipariş <b>Altın</b>, girilmezse <b>Kalıp</b> olarak kaydedilir.</p>
+
+            <div class="rec-exps">
+                <span class="rec-exps-title">Masraflar <small>(cila, kaplama, taş mıhlama, dış atölye…)</small></span>
+                <div id="recExps">
+                    @for (int i = 0; i < exps.Count; i++)
+                    {
+                        <div class="rec-exp-row">
+                            <input type="text" class="rx-d" name="Expenses[@i].Desc" value="@exps[i].Desc" placeholder="Açıklama" />
+                            <input type="number" class="rx-a" name="Expenses[@i].Amount" value="@Fmt.Input(exps[i].Amount)" min="0" step="0.01" placeholder="$" data-calc="exp" />
+                            <button type="button" class="rx-x" title="Satırı sil">✕</button>
+                        </div>
+                    }
+                </div>
+                <button type="button" class="btn secondary sm" id="recExpAdd">+ Masraf satırı</button>
+            </div>
+
+            <div class="wrow">
+                <div class="wcell price-cell"><label asp-for="Price">Fiyat ($)</label><input asp-for="Price" type="number" min="0" step="0.01" placeholder="0,00" required data-calc="price" /></div>
+                <p class="field-hint calc-note" id="calcNote"></p>
+            </div>
+        </div>
+
+        <div class="field rec-note-field">
+            <label asp-for="Note">Not</label>
+            <textarea asp-for="Note" rows="2" placeholder="Bu siparişle ilgili not (isteğe bağlı)"></textarea>
+        </div>
+
+        <div class="rec-actions">
+            <a class="btn secondary" asp-controller="Customers" asp-action="Details" asp-route-id="@Model.CustomerId">Vazgeç</a>
+            <button type="submit" class="btn">Siparişi kaydet</button>
+        </div>
+    </form>
+</div>

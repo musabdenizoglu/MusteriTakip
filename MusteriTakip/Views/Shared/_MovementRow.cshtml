@@ -1,0 +1,88 @@
+@model Movement
+@{
+    var showCust = ViewData["ShowCustomer"] as bool? ?? true;
+    var showActions = ViewData["ShowActions"] as bool? ?? true;
+    var returnUrl = ViewData["ReturnUrl"] as string ?? "";
+    var cls = Model.Type switch { MovementType.Payment => "payment", MovementType.Expense => "expense", _ => "price" };
+    var badge = Model.Type switch { MovementType.Order => "Sipariş", MovementType.Debt => "Borç", MovementType.Payment => "Ödeme", _ => "Gider" };
+}
+<div class="hist-row @cls">
+    <span class="badge @cls">@badge</span>
+    @if (showCust)
+    {
+        if (Model.CustomerId != null)
+        {
+            <a class="cust @cls" asp-controller="Customers" asp-action="Details" asp-route-id="@Model.CustomerId">@Model.CustomerName</a>
+        }
+        else
+        {
+            <span class="cust @cls">@Model.CustomerName</span>
+        }
+    }
+    <span class="hist-date">@Fmt.Date(Model.Date)</span>
+    <span class="hist-desc" title="@Model.Description">
+        @if (!string.IsNullOrEmpty(Model.Code))
+        {
+            <b class="code-chip">@Model.Code</b>
+        }
+        @Model.Description
+        @if (!string.IsNullOrEmpty(Model.SubText))
+        {
+            <small class="gold-calc">@Model.SubText</small>
+        }
+    </span>
+    <span class="hist-amount">
+        @if (Model.Type == MovementType.Expense)
+        {
+            if (Model.MissingRate)
+            {
+                <span class="usd-missing">kur yok</span>
+            }
+            else
+            {
+                <text>−@Fmt.Usd(Model.AmountUsd)</text>
+            }
+            <small>@Fmt.Tl(Model.AmountTl)</small>
+        }
+        else if (Model.Type == MovementType.Payment)
+        {
+            <text>@Fmt.Usd(Model.AmountUsd)</text>
+            if (Model.Gold != 0)
+            {
+                <small class="gold">−@Fmt.Gr(-Model.Gold)</small>
+            }
+        }
+        else
+        {
+            <text>@Fmt.Usd(Model.AmountUsd)</text>
+            if (Model.Gold != 0)
+            {
+                <small class="gold">+@Fmt.Gr(Model.Gold)</small>
+            }
+        }
+    </span>
+    @if (showActions)
+    {
+        <span class="row-actions">
+            @switch (Model.Type)
+            {
+                case MovementType.Order:
+                    <a class="edit" asp-controller="Orders" asp-action="Edit" asp-route-id="@Model.Id" title="Düzenle">✎</a>
+                    <form method="post" asp-controller="Orders" asp-action="Delete" asp-route-id="@Model.Id" asp-route-returnUrl="@returnUrl" data-confirm="Bu sipariş çöp kutusuna taşınsın mı?"><button class="del" title="Sil">✕</button></form>
+                    break;
+                case MovementType.Debt:
+                    <a class="edit" asp-controller="Orders" asp-action="EditDebt" asp-route-id="@Model.Id" title="Düzenle">✎</a>
+                    <form method="post" asp-controller="Orders" asp-action="Delete" asp-route-id="@Model.Id" asp-route-returnUrl="@returnUrl" data-confirm="Bu borç kaydı çöp kutusuna taşınsın mı?"><button class="del" title="Sil">✕</button></form>
+                    break;
+                case MovementType.Payment:
+                    <a class="edit" asp-controller="Payments" asp-action="Edit" asp-route-id="@Model.Id" title="Düzenle">✎</a>
+                    <form method="post" asp-controller="Payments" asp-action="Delete" asp-route-id="@Model.Id" asp-route-returnUrl="@returnUrl" data-confirm="Bu ödeme çöp kutusuna taşınsın mı?"><button class="del" title="Sil">✕</button></form>
+                    break;
+                default:
+                    <a class="edit" asp-controller="Expenses" asp-action="Index" asp-route-edit="@Model.Id" title="Düzenle">✎</a>
+                    <form method="post" asp-controller="Expenses" asp-action="Delete" asp-route-id="@Model.Id" data-confirm="Bu gider çöp kutusuna taşınsın mı?"><button class="del" title="Sil">✕</button></form>
+                    break;
+            }
+        </span>
+    }
+</div>

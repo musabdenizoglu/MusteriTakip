@@ -1,0 +1,8 @@
+bin/
+obj/
+.vs/
+*.db
+*.db-shm
+*.db-wal
+MusteriTakip/wwwroot/uploads/*
+!MusteriTakip/wwwroot/uploads/.gitkeep

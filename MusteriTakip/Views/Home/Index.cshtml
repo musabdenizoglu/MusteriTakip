@@ -1,0 +1,93 @@
+@model DashboardVm
+@{
+    ViewData["Title"] = "Ana Sayfa";
+    string Delta(decimal now, decimal prev)
+    {
+        if (prev == 0) return now == 0 ? "" : "yeni";
+        var p = (now - prev) / Math.Abs(prev) * 100m;
+        return (p >= 0 ? "▲ %" : "▼ %") + Math.Abs(p).ToString("0", Fmt.Tr);
+    }
+    string DeltaCls(decimal now, decimal prev, bool lowerIsBetter = false)
+    {
+        if (prev == 0 || now == prev) return "flat";
+        var up = now > prev;
+        return (up ^ lowerIsBetter) ? "up" : "down";
+    }
+    var display = User.FindFirst("DisplayName")?.Value ?? User.Identity?.Name ?? "";
+}
+
+<div class="dash-hello">
+    <div><h1>Merhaba @display</h1><p>@Fmt.Date(Dates.Today) · İşinizin bugünkü durumu</p></div>
+    <div class="hello-r"><a class="btn" asp-controller="Orders" asp-action="New">＋ Yeni Sipariş</a></div>
+</div>
+
+<div class="card month-card">
+    <div class="month-head"><h2>Bu Ay · @Model.MonthTitle</h2><span class="month-sub">Ayrıntı için kartlara tıklayın</span></div>
+    <div class="month-grid">
+        <a class="m-stat k-blue" asp-controller="Reports" asp-action="Index">
+            <span class="m-lbl">Sipariş</span><b>@Model.This.Jobs</b>
+            <small class="m-delta @DeltaCls(Model.This.Jobs, Model.Prev.Jobs)">@Delta(Model.This.Jobs, Model.Prev.Jobs)</small>
+        </a>
+        <a class="m-stat k-green" asp-controller="Reports" asp-action="Index">
+            <span class="m-lbl">Ciro</span><b>@Fmt.Usd(Model.This.Ciro)</b>
+            <small class="m-delta @DeltaCls(Model.This.Ciro, Model.Prev.Ciro)">@Delta(Model.This.Ciro, Model.Prev.Ciro)</small>
+        </a>
+        <a class="m-stat k-purple" asp-controller="Kasa" asp-action="Index" asp-route-period="m0">
+            <span class="m-lbl">Tahsilat</span><b>@Fmt.Usd(Model.This.Tahsilat)</b>
+            <small class="m-delta @DeltaCls(Model.This.Tahsilat, Model.Prev.Tahsilat)">@Delta(Model.This.Tahsilat, Model.Prev.Tahsilat)</small>
+        </a>
+        <a class="m-stat k-red" asp-controller="Expenses" asp-action="Index" asp-route-period="m0">
+            <span class="m-lbl">Gider</span><b>@Fmt.Usd(Model.This.GiderUsd)</b>
+            <small class="m-delta @DeltaCls(Model.This.GiderUsd, Model.Prev.GiderUsd, true)">@Delta(Model.This.GiderUsd, Model.Prev.GiderUsd)</small>
+        </a>
+        <a class="m-stat k-orange m-rest" asp-controller="Kasa" asp-action="Index">
+            <span class="m-lbl">Kasa Bakiye</span><b>@Fmt.Usd(Model.KasaBakiye)</b>
+            <small class="m-delta flat">tahsilat − gider</small>
+        </a>
+    </div>
+</div>
+
+<div class="grid2">
+    <div class="card">
+        <h2>Alacak Durumu</h2>
+        <div class="kasa-stats cols-3">
+            <div class="kasa-stat"><span class="label">Müşteri</span><span class="amount">@Model.CustomerCount</span></div>
+            <div class="kasa-stat"><span class="label">Borçlu müşteri</span><span class="amount">@Model.DebtorCount</span></div>
+            <div class="kasa-stat result"><span class="label">Toplam alacak</span><span class="amount">@Fmt.Usd(Model.TotalRest)</span><span class="sub">@Fmt.Gr(Model.TotalGoldRest) altın</span></div>
+        </div>
+    </div>
+    <div class="card">
+        <h2>En Çok Borcu Olanlar</h2>
+        @if (Model.TopDebtors.Count == 0)
+        {
+            <p class="empty-note">Borçlu müşteri yok. 🎉</p>
+        }
+        else
+        {
+            <ul class="cust-list compact">
+                @foreach (var (c, rest) in Model.TopDebtors)
+                {
+                    <li><a asp-controller="Customers" asp-action="Details" asp-route-id="@c.Id"><span>@c.Name</span><span class="cl-bal debt">@Fmt.Usd(rest)</span></a></li>
+                }
+            </ul>
+        }
+    </div>
+</div>
+
+<div class="card activity-card">
+    <h2>Zaman Çizgisi</h2>
+    <form method="get" class="quick-search">
+        <label for="q">Hızlı Arama</label>
+        <input type="text" id="q" name="q" value="@Model.Search" placeholder="Müşteri, model, kod veya tarih… (virgülle birden fazla)" />
+    </form>
+    @if (Model.Timeline.Count == 0)
+    {
+        <div class="empty-note">Henüz sipariş yok. “Yeni Sipariş” ile ilk kaydı ekleyin; burada görünür.</div>
+    }
+    <div class="scroll-list">
+        @foreach (var m in Model.Timeline)
+        {
+            <partial name="_MovementRow" model="m" view-data='new ViewDataDictionary(ViewData) { ["ShowActions"] = false }' />
+        }
+    </div>
+</div>

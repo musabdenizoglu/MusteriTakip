@@ -1,0 +1,23 @@
+@model RegisterVm
+@{
+    Layout = "_LoginLayout";
+    ViewData["Title"] = "Hesap oluştur";
+}
+<h1>Müşteri Takip</h1>
+<p class="sub">Yeni bir hesap oluşturun</p>
+<form method="post" asp-action="Register">
+    <label asp-for="UserName">Kullanıcı adı</label>
+    <input asp-for="UserName" autocomplete="username" autofocus />
+    <span class="error" asp-validation-for="UserName"></span>
+    <label asp-for="Password">Şifre</label>
+    <input asp-for="Password" type="password" autocomplete="new-password" />
+    <span class="error" asp-validation-for="Password"></span>
+    <label asp-for="Password2">Şifre (tekrar)</label>
+    <input asp-for="Password2" type="password" autocomplete="new-password" />
+    <span class="error" asp-validation-for="Password2"></span>
+    <button type="submit" class="btn block">Kayıt ol</button>
+</form>
+<div class="switch-mode">
+    <span>Zaten hesabınız var mı?</span>
+    <a asp-action="Login">Giriş yap</a>
+</div>

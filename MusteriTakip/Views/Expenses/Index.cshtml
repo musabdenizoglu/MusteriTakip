@@ -1,0 +1,92 @@
+@model ExpensesVm
+@{
+    ViewData["Title"] = "Giderler";
+    var f = Model.Form;
+    var editing = f.Id != null;
+}
+<div class="seg-tabs">
+    <a asp-controller="Kasa" asp-action="Index">Hareketler</a>
+    <a class="on" asp-controller="Expenses" asp-action="Index">Giderler</a>
+    <a asp-controller="Reports" asp-action="Index">Raporlar</a>
+</div>
+
+<div class="card">
+    <h2>@(editing ? "Gideri Düzenle" : "Gider Ekle")</h2>
+    <form method="post" asp-action="Save" class="record-form" id="expenseForm" data-expense-form>
+        <input type="hidden" asp-for="Form.Id" />
+        <div class="field grow exptype-small">
+            <label asp-for="Form.ExpenseTagId">Gider türü</label>
+            <select asp-for="Form.ExpenseTagId">
+                <option value="">Seçin…</option>
+                @foreach (var t in Model.Tags)
+                {
+                    <option value="@t.Id">@t.Name</option>
+                }
+            </select>
+            <span class="error" asp-validation-for="Form.ExpenseTagId"></span>
+            <div class="exp-quick-tag">
+                <input asp-for="Form.NewTag" placeholder="ya da yeni etiket yazın" autocomplete="off" />
+            </div>
+        </div>
+        <div class="field grow">
+            <label asp-for="Form.Note">Açıklama</label>
+            <input asp-for="Form.Note" placeholder="İsteğe bağlı" autocomplete="off" />
+        </div>
+        <div class="field">
+            <label asp-for="Form.Amount">Tutar (₺)</label>
+            <input asp-for="Form.Amount" type="number" min="0" step="0.01" placeholder="0,00" required data-exp="amount" />
+            <span class="error" asp-validation-for="Form.Amount"></span>
+        </div>
+        <div class="field">
+            <label asp-for="Form.Rate">Dolar kuru (₺)</label>
+            <input asp-for="Form.Rate" type="number" min="0" step="0.0001" placeholder="Otomatik" data-exp="rate" />
+            <button type="button" class="btn secondary sm live-rate-btn" data-live-rate="Form_Rate">⟳ Güncel kur</button>
+            <span class="field-hint" id="expenseUsdPreview"></span>
+        </div>
+        <div class="field">
+            <label asp-for="Form.Date">Tarih</label>
+            <input asp-for="Form.Date" type="date" />
+        </div>
+        <button type="submit" class="btn save-record">@(editing ? "Kaydet" : "Gideri Ekle")</button>
+        @if (editing)
+        {
+            <a class="btn secondary save-record" asp-action="Index">Vazgeç</a>
+        }
+    </form>
+</div>
+
+<div class="card exp-list-card">
+    <div class="records-head exp-head">
+        <h2>Giderler</h2>
+        <form method="get" class="inline">
+            <select name="period" onchange="this.form.submit()" aria-label="Dönem">
+                <option value="" selected="@(string.IsNullOrEmpty(Model.Period))">Dönem: Tümü</option>
+                <option value="m0" selected="@(Model.Period == "m0")">Bu ay</option>
+                <option value="m1" selected="@(Model.Period == "m1")">Geçen ay</option>
+                <option value="y0" selected="@(Model.Period == "y0")">Bu yıl</option>
+                <option value="y1" selected="@(Model.Period == "y1")">Geçen yıl</option>
+            </select>
+        </form>
+    </div>
+    <div class="kasa-period-sum"><span>@Model.Items.Count gider</span><span>Toplam <b>@Fmt.Tl(Model.TotalTl)</b></span><span>Dolar karşılığı <b>@Fmt.Usd(Model.TotalUsd)</b></span></div>
+    @if (Model.Items.Count == 0)
+    {
+        <div class="empty-note">Henüz gider yok. Yukarıdan ilk giderinizi ekleyin; kategoriye göre raporlanır.</div>
+    }
+    <div id="expenseList" class="scroll-list">
+        @foreach (var e in Model.Items)
+        {
+            var usd = LedgerService.ExpenseUsd(e);
+            <div class="hist-row exp-row">
+                <span class="kind-tag k-gider">@LedgerService.ExpenseLabel(e)</span>
+                <span class="hist-desc">@(e.Note ?? "—")</span>
+                <span class="hist-date">@Fmt.Date(e.Date)</span>
+                <span class="exp-amt"><b>@Fmt.Tl(e.Amount)</b><small>@(usd != null ? Fmt.Usd(usd) + " · " + Fmt.Rate(e.Rate) : "kur girilmemiş")</small></span>
+                <span class="row-actions">
+                    <a class="edit" asp-action="Index" asp-route-edit="@e.Id" title="Düzenle">✎</a>
+                    <form method="post" asp-action="Delete" asp-route-id="@e.Id" data-confirm="Bu gider çöp kutusuna taşınsın mı?"><button class="del" title="Sil">✕</button></form>
+                </span>
+            </div>
+        }
+    </div>
+</div>

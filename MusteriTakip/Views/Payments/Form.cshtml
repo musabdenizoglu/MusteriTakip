@@ -1,0 +1,134 @@
+@model PaymentFormVm
+@{
+    var isNew = Model.Id == null;
+    ViewData["Title"] = isNew ? "Ödeme Ekle" : "Ödemeyi Düzenle";
+    var pickCustomer = isNew && Model.FromKasa && !(Model.CustomerId > 0);
+}
+@if (Model.CustomerId > 0)
+{
+    <span class="back-pair"><a class="btn secondary" asp-controller="Customers" asp-action="Details" asp-route-id="@Model.CustomerId" asp-route-tab="cari">← @Model.CustomerName</a></span>
+}
+else
+{
+    <span class="back-pair"><a class="btn secondary" asp-controller="Kasa" asp-action="Index">← Genel Kasa</a></span>
+}
+
+<form method="post" asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@Model.Id" class="card pay-card" id="payForm" data-pay-form
+      data-gold-remaining="@Fmt.Input(Model.GoldRemaining)" novalidate>
+    <div class="pay-head"><h2>@ViewData["Title"]</h2></div>
+    @if (!pickCustomer)
+    {
+        <p class="pay-cust">@Model.CustomerName</p>
+        <input type="hidden" asp-for="CustomerId" />
+    }
+    <input type="hidden" asp-for="FromKasa" />
+    <div asp-validation-summary="All" class="error"></div>
+
+    <div class="pm-grid">
+        @if (pickCustomer)
+        {
+            <div class="field pm-full">
+                <label asp-for="CustomerName">Müşteri</label>
+                <input asp-for="CustomerName" list="pmCustList" class="upper" autocomplete="off" placeholder="Seçin / yazın" />
+                <datalist id="pmCustList">
+                    @foreach (var c in Model.Customers)
+                    {
+                        <option value="@c.Name"></option>
+                    }
+                </datalist>
+            </div>
+        }
+        <div class="field">
+            <label asp-for="Kind">İşlem türü</label>
+            <select asp-for="Kind" data-pm-kind>
+                <option value="Altın">Altın</option>
+                <option value="Kalıp">Kalıp</option>
+            </select>
+        </div>
+        <div class="field" data-show-kind="Altın">
+            <label asp-for="PayType">Ödeme türü</label>
+            <select asp-for="PayType" data-pm-type>
+                <option value="gr">Has (gr)</option>
+                <option value="hurda">Hurda (gr)</option>
+                <option value="usd">Dolar ($)</option>
+                <option value="tl">Türk Lirası (₺)</option>
+            </select>
+        </div>
+        <div class="field" data-hide-type="hurda">
+            <label asp-for="Method">Ödeme</label>
+            <select asp-for="Method">
+                <option value="Nakit">Nakit</option>
+                <option value="Havale / EFT">Havale / EFT</option>
+                <option value="Kredi kartı">Kredi kartı</option>
+            </select>
+        </div>
+        <div class="field">
+            <label asp-for="Date">Tarih</label>
+            <input asp-for="Date" type="date" />
+        </div>
+
+        <div class="hurda-box pm-full" data-show-type="hurda">
+            <div class="wcell"><label asp-for="HurdaGr">Hurda (gr)</label><input asp-for="HurdaGr" type="number" min="0" step="0.01" placeholder="0,00" data-pm="hurdaGr" /></div>
+            <div class="wcell"><label asp-for="HurdaMil">Milyem</label><input asp-for="HurdaMil" type="number" min="0" max="1000" step="1" placeholder="585" data-pm="hurdaMil" /></div>
+            <div class="wcell hurda-has"><label>Has karşılığı</label><b id="pmHasShow">—</b></div>
+        </div>
+
+        <div class="field" data-show-type="gr">
+            <label asp-for="Gram">Has altın (gr)</label>
+            <input asp-for="Gram" type="number" min="0" step="0.001" placeholder="0,000" data-pm="gram" />
+        </div>
+        <div class="field" data-show-type="gr hurda">
+            <label asp-for="GoldPrice">Altın fiyatı ($/gr)</label>
+            <input asp-for="GoldPrice" type="number" min="0" step="0.01" placeholder="0,00" data-pm="goldPrice" />
+            <button type="button" class="btn secondary sm live-rate-btn" data-live-gold-usd>⟳ Canlı gr/$</button>
+        </div>
+
+        <div class="field" data-show-type="tl">
+            <label asp-for="Tl">Tutar (₺)</label>
+            <input asp-for="Tl" type="number" min="0" step="0.01" placeholder="0,00" data-pm="tl" />
+        </div>
+        <div class="field" data-show-type="tl usd">
+            <label asp-for="Rate">Dolar kuru (₺)</label>
+            <input asp-for="Rate" type="number" min="0" step="0.0001" placeholder="Otomatik" data-pm="rate" />
+            <button type="button" class="btn secondary sm live-rate-btn" data-live-rate>⟳ Güncel kur</button>
+        </div>
+
+        <div class="field pm-full">
+            <label asp-for="Amount">Tutar ($)</label>
+            <input asp-for="Amount" type="number" min="0" step="0.01" placeholder="0,00" data-pm="amount" />
+            <p class="field-hint" id="pmCalc"></p>
+        </div>
+
+        @if (Model.GoldRemaining > 0.0005m)
+        {
+            <div class="gold-close pm-full" data-show-kind="Altın" data-show-type="usd tl">
+                <div class="gc-info">Kalan altın borcu: <b>@Fmt.Gr(Model.GoldRemaining)</b></div>
+                <label class="gc-chk"><input type="checkbox" asp-for="CountAsCash" data-pm-cash /> <span>Tutar nakit (işçilik) borcuna sayılsın</span></label>
+                <div class="field" data-goldeq>
+                    <label asp-for="GoldEqPrice">Altına çevirme fiyatı ($/gr)</label>
+                    <input asp-for="GoldEqPrice" type="number" min="0" step="0.01" placeholder="0,00" data-pm="goldEqPrice" />
+                    <button type="button" class="btn secondary sm live-rate-btn" data-live-gold-usd="GoldEqPrice">⟳ Canlı gr/$</button>
+                    <p class="field-hint" id="pmEq"></p>
+                </div>
+            </div>
+        }
+        else
+        {
+            <input type="hidden" name="CountAsCash" value="true" />
+        }
+
+        <div class="field pm-full">
+            <label asp-for="Note">Not</label>
+            <input asp-for="Note" placeholder="İsteğe bağlı" />
+        </div>
+    </div>
+
+    <div class="confirm-actions">
+        @if (!isNew)
+        {
+            <span class="spacer"></span>
+        }
+        <a class="btn secondary" href="javascript:history.back()">Vazgeç</a>
+        <button type="submit" class="btn">Kaydet</button>
+    </div>
+</form>

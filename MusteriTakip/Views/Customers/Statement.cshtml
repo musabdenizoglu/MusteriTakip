@@ -1,0 +1,67 @@
+@model StatementVm
+@{
+    Layout = null;
+    var c = Model.Customer;
+    var debt = Model.Rows.Sum(r => r.Debt);
+    var pay = Model.Rows.Sum(r => r.Pay);
+    var last = Model.Rows.Count > 0 ? Model.Rows[^1].Balance : 0m;
+}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <title>Hesap Ekstresi · @c.Name</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="print-page">
+    <form method="get" class="no-print stmt-bar">
+        <label>Başlangıç <input type="date" name="from" value="@Fmt.InputDate(Model.From)" /></label>
+        <label>Bitiş <input type="date" name="to" value="@Fmt.InputDate(Model.To)" /></label>
+        <button class="btn" type="submit">Uygula</button>
+        <button class="btn secondary" type="button" onclick="window.print()">⎙ Yazdır / PDF kaydet</button>
+        <a class="btn secondary" asp-action="Details" asp-route-id="@c.Id">← Müşteriye dön</a>
+    </form>
+
+    <div class="st-head">
+        <div><h1>Hesap Ekstresi</h1><div>@Model.ShopName</div></div>
+        <div class="st-meta">
+            Tarih: @Fmt.Date(Dates.Today)<br />
+            Dönem: @(Model.From == null ? "Başlangıç" : Fmt.Date(Model.From)) – @(Model.To == null ? "Bugün" : Fmt.Date(Model.To))
+        </div>
+    </div>
+    <p class="st-cust">@c.Name @(c.Code != null ? "(" + c.Code + ")" : "")</p>
+    <div>@c.Phone @(c.Email != null ? " · " + c.Email : "")</div>
+
+    <div class="st-sum">
+        <div><span>Borç (dönem)</span><b>@Fmt.Usd(debt)</b></div>
+        <div><span>Ödeme (dönem)</span><b>@Fmt.Usd(pay)</b></div>
+        <div><span>Bakiye</span><b>@Fmt.Usd(last)</b></div>
+    </div>
+
+    <h2 class="st-h2">Dolar hesabı</h2>
+    <table class="st-table">
+        <thead><tr><th>Tarih</th><th>Açıklama</th><th>Borç</th><th>Ödeme</th><th>Bakiye</th></tr></thead>
+        <tbody>
+            @foreach (var r in Model.Rows)
+            {
+                <tr class="@(r.IsCarry ? "carry" : "")">
+                    <td>@Fmt.Date(r.Date)</td>
+                    <td>@r.Description</td>
+                    <td class="n">@(r.Debt > 0 ? Fmt.Usd(r.Debt) : "")</td>
+                    <td class="n">@(r.Pay > 0 ? Fmt.Usd(r.Pay) : "")</td>
+                    <td class="n">@Fmt.Usd(r.Balance)</td>
+                </tr>
+            }
+        </tbody>
+        <tfoot><tr><td colspan="2">Toplam</td><td class="n">@Fmt.Usd(debt)</td><td class="n">@Fmt.Usd(pay)</td><td class="n">@Fmt.Usd(last)</td></tr></tfoot>
+    </table>
+
+    <h2 class="st-h2">Altın hesabı (tüm zamanlar)</h2>
+    <table class="st-table">
+        <thead><tr><th>Toplam altın ciro</th><th>Alınan altın ödeme</th><th>Kalan altın</th></tr></thead>
+        <tbody><tr><td class="n">@Fmt.Gr(Model.Totals.GoldTotal)</td><td class="n">@Fmt.Gr(Model.Totals.GoldPaid)</td><td class="n">@Fmt.Gr(Model.Totals.GoldRest)</td></tr></tbody>
+    </table>
+
+    <p class="st-foot">Bu ekstre @Model.ShopName tarafından @Fmt.Date(Dates.Today) tarihinde hazırlanmıştır.</p>
+</body>
+</html>

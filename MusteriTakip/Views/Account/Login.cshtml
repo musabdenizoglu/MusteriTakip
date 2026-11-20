@@ -1,0 +1,23 @@
+@model LoginVm
+@{
+    Layout = "_LoginLayout";
+    ViewData["Title"] = "Giriş";
+}
+<h1>Müşteri Takip</h1>
+<p class="sub">Devam etmek için giriş yapın</p>
+<form method="post" asp-action="Login">
+    <input type="hidden" asp-for="ReturnUrl" />
+    <label asp-for="UserName">Kullanıcı adı</label>
+    <input asp-for="UserName" autocomplete="username" autofocus />
+    <span class="error" asp-validation-for="UserName"></span>
+    <label asp-for="Password">Şifre</label>
+    <input asp-for="Password" type="password" autocomplete="current-password" />
+    <span class="error" asp-validation-for="Password"></span>
+    <div class="error" asp-validation-summary="ModelOnly"></div>
+    <button type="submit" class="btn block">Giriş yap</button>
+</form>
+<div class="switch-mode">
+    <span>Hesabınız yok mu?</span>
+    <a asp-action="Register">Hesap oluştur</a>
+</div>
+<p class="field-hint" style="text-align:center;margin-top:14px">İlk kurulum: <b>admin</b> / <b>admin123</b></p>

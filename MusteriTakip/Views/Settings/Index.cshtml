@@ -1,0 +1,83 @@
+@model SettingsVm
+@{
+    ViewData["Title"] = "Ayarlar";
+}
+<div class="card">
+    <h2>Genel Ayarlar</h2>
+
+    <div class="gs-box">
+        <div class="gs-head">Fiyatlar ve İşçilikler</div>
+        <form method="post" asp-action="SavePrices" class="settings-row">
+            <div class="wcell set-cell"><label for="mumGrFiyat">Mum gr fiyatı ($)</label><input type="number" id="mumGrFiyat" name="mumGrFiyat" value="@Fmt.Input(Model.MumGrFiyat)" min="0" step="0.01" placeholder="0,00" /></div>
+            <div class="wcell set-cell"><label for="gumusGrFiyat">Gümüş gr fiyatı ($)</label><input type="number" id="gumusGrFiyat" name="gumusGrFiyat" value="@Fmt.Input(Model.GumusGrFiyat)" min="0" step="0.01" placeholder="0,00" /></div>
+            <div class="wcell set-cell"><label for="altinGrFiyat">Altın işçilik ($/gr)</label><input type="number" id="altinGrFiyat" name="altinGrFiyat" value="@Fmt.Input(Model.AltinGrFiyat)" min="0" step="0.01" placeholder="0,00" /></div>
+            <button type="submit" class="btn settings-save">Kaydet</button>
+        </form>
+        <p class="field-hint">Siparişte Mum/Gümüş/Altın gramı girildiğinde dolar karşılığı bu fiyatlarla otomatik hesaplanır; fiyat bir üst tam dolara yuvarlanır. Her sipariş, kayıt anındaki fiyatları saklar.</p>
+    </div>
+
+    <div class="gs-box">
+        <div class="gs-head">Gider Etiketleri</div>
+        <form method="post" asp-action="AddTag" class="settings-row">
+            <div class="field ab-field"><label for="tagName">Yeni gider etiketi</label><input type="text" id="tagName" name="name" placeholder="Örn. Kira, Fatura, Malzeme" autocomplete="off" /></div>
+            <button type="submit" class="btn settings-save">Ekle</button>
+        </form>
+        <div class="exptag-list">
+            @foreach (var t in Model.Tags)
+            {
+                <form method="post" asp-action="DeleteTag" asp-route-id="@t.Id" class="kind-tag exptag-chip" data-confirm="“@t.Name” etiketi silinsin mi? (Eski giderlerde adı kalır.)">
+                    @t.Name <button type="submit" title="Sil">✕</button>
+                </form>
+            }
+        </div>
+    </div>
+
+    <div class="gs-box">
+        <div class="gs-head">İşyeri Adı ve Filigran</div>
+        <form method="post" asp-action="SaveShop" class="settings-row">
+            <div class="field"><label for="shopName">Üst başlıkta görünecek ad</label><input type="text" id="shopName" name="shopName" value="@Model.ShopName" maxlength="60" placeholder="Örn. Selim Kuyumculuk" /></div>
+            <div class="field"><label for="watermarkBrand">Fotoğraf filigranı</label><input type="text" id="watermarkBrand" name="watermarkBrand" value="@Model.WatermarkBrand" maxlength="40" placeholder="ARTE DESIGN" /></div>
+            <button type="submit" class="btn settings-save">Kaydet</button>
+        </form>
+    </div>
+
+    <div class="gs-box">
+        <div class="gs-head">Görünüm</div>
+        <div class="theme-grid" id="themeGrid">
+            <button type="button" class="theme-opt" data-theme-key="orijinal"><span class="theme-sw" style="background:#F6F3EC"><i style="background:#2E6F5E"></i><i style="background:#C98A2B"></i></span><span class="theme-name">Orijinal <span class="tick">✓</span></span></button>
+            <button type="button" class="theme-opt" data-theme-key="lacivert"><span class="theme-sw" style="background:#F2F4F8"><i style="background:#1F3B70"></i><i style="background:#C08A2E"></i></span><span class="theme-name">Lacivert <span class="tick">✓</span></span></button>
+            <button type="button" class="theme-opt" data-theme-key="kurumsal"><span class="theme-sw" style="background:#EFF0F3"><i style="background:#0072BC"></i><i style="background:#005A96"></i></span><span class="theme-name">Kurumsal Mavi <span class="tick">✓</span></span></button>
+            <button type="button" class="theme-opt" data-theme-key="zumrut"><span class="theme-sw" style="background:#EEF2EF"><i style="background:#0F5A47"></i><i style="background:#9C5E40"></i></span><span class="theme-name">Zümrüt <span class="tick">✓</span></span></button>
+        </div>
+        <h3 class="fs-title">Yazı boyutu</h3>
+        <div class="fs-seg" id="fsSeg">
+            <button type="button" class="fs-opt" data-fs="n"><span>A</span> Normal</button>
+            <button type="button" class="fs-opt" data-fs="l"><span>A</span> Büyük</button>
+            <button type="button" class="fs-opt" data-fs="xl"><span>A</span> Çok büyük</button>
+        </div>
+    </div>
+</div>
+
+<div class="card store-card">
+    <h2>Veriler</h2>
+    <div class="store-stats">
+        <div><span>Müşteri</span><b>@Model.CustomerCount</b></div>
+        <div><span>Sipariş / borç</span><b>@Model.RecordCount</b></div>
+        <div><span>Ödeme</span><b>@Model.PaymentCount</b></div>
+        <div><span>Gider</span><b>@Model.ExpenseCount</b></div>
+    </div>
+    <div class="store-row">
+        <a class="btn yellow" asp-controller="Backup" asp-action="Export">⬇ Yedek Al</a>
+        <a class="btn yellow" asp-controller="Backup" asp-action="Index">⬆ Yedeği yükle</a>
+        <a class="btn secondary" asp-controller="Trash" asp-action="Index">🗑 Çöp Kutusu</a>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Şifre değiştir</h2>
+    <form method="post" asp-action="ChangePassword" class="settings-row">
+        <div class="field"><label for="current">Mevcut şifre</label><input type="password" id="current" name="current" autocomplete="current-password" /></div>
+        <div class="field"><label for="next">Yeni şifre</label><input type="password" id="next" name="next" autocomplete="new-password" /></div>
+        <button type="submit" class="btn settings-save">Değiştir</button>
+    </form>
+</div>

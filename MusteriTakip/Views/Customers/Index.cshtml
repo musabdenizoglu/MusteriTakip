@@ -1,0 +1,73 @@
+@model CustomerListVm
+@{
+    ViewData["Title"] = "Müşteriler";
+}
+<div class="card">
+    <div class="records-head cust-head">
+        <h2>Müşteriler <span class="count-pill">@Model.Items.Count</span></h2>
+        <span>
+            <a class="btn secondary" asp-controller="Trash" asp-action="Index">🗑 Çöp Kutusu @if (Model.TrashCount > 0) {<span class="count-pill">@Model.TrashCount</span>}</a>
+            <a class="btn" asp-action="Create">+ Yeni Müşteri</a>
+        </span>
+    </div>
+    <form method="get" class="cust-sort-row">
+        <input type="text" class="search" name="q" value="@Model.Search" placeholder="Müşteri adı, kod ya da telefonla ara…" />
+        <select name="sort" onchange="this.form.submit()" aria-label="Sıralama">
+            <option value="" selected="@(string.IsNullOrEmpty(Model.Sort))">Sıralama: varsayılan</option>
+            <option value="az" selected="@(Model.Sort == "az")">A → Z</option>
+            <option value="debt" selected="@(Model.Sort == "debt")">Borcu çok olan üstte</option>
+            <option value="last" selected="@(Model.Sort == "last")">Son işlem yeni olan üstte</option>
+        </select>
+    </form>
+
+    @if (Model.Items.Count == 0)
+    {
+        <div class="empty-note">Henüz müşteri yok. Sağ üstteki “+ Yeni Müşteri” ile ilk müşterinizi ekleyin.</div>
+    }
+    else
+    {
+        <div class="cust-list-head" aria-hidden="true"><span></span><span>Müşteri İsmi</span><span>Kod</span><span>Telefon</span><span>Son işlem</span><span>Bakiye</span></div>
+        <ul class="cust-list full">
+            @foreach (var it in Model.Items)
+            {
+                var c = it.Customer;
+                <li>
+                    <a asp-action="Details" asp-route-id="@c.Id">
+                        <span class="avatar">
+                            @if (c.ImagePath != null)
+                            {
+                                <img src="@c.ImagePath" alt="" />
+                            }
+                            else
+                            {
+                                <span class="ini-av" style="background:@Fmt.AvatarColor(c.Name)">@Fmt.Initials(c.Name)</span>
+                            }
+                        </span>
+                        <span class="cl-name">@c.Name</span>
+                        <span class="muted">@c.Code</span>
+                        <span class="muted">@c.Phone</span>
+                        <span class="muted">@Fmt.Date(it.LastDate)</span>
+                        <span class="cl-right">
+                            @if (it.Rest > 0.004m)
+                            {
+                                <span class="cl-bal debt">@Fmt.Usd(it.Rest)</span>
+                            }
+                            else if (it.Rest < -0.004m)
+                            {
+                                <span class="cl-bal credit">@Fmt.Usd(-it.Rest) alacaklı</span>
+                            }
+                            else
+                            {
+                                <span class="cl-bal ok">0 $</span>
+                            }
+                            @if (Math.Abs(it.GoldRest) > 0.0005m)
+                            {
+                                <small class="cl-sub">@Fmt.Gr(it.GoldRest)</small>
+                            }
+                        </span>
+                    </a>
+                </li>
+            }
+        </ul>
+    }
+</div>

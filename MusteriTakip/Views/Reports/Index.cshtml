@@ -1,0 +1,143 @@
+@model ReportsVm
+@{
+    ViewData["Title"] = "Raporlar";
+    var max = Model.Months.Select(m => Math.Max(Math.Max(m.Ciro, m.Tahsilat), m.GiderUsd)).DefaultIfEmpty(0m).Max();
+    if (max <= 0) max = 1;
+    string H(decimal v) => Math.Round(v / max * 100m, 1).ToString(System.Globalization.CultureInfo.InvariantCulture) + "%";
+    var tagMax = Model.ExpenseByTag.Select(x => x.Value).DefaultIfEmpty(0m).Max();
+    if (tagMax <= 0) tagMax = 1;
+    var tot = new MonthRow
+    {
+        Jobs = Model.Months.Sum(m => m.Jobs),
+        Ciro = Model.Months.Sum(m => m.Ciro),
+        Cost = Model.Months.Sum(m => m.Cost),
+        Tahsilat = Model.Months.Sum(m => m.Tahsilat),
+        GiderUsd = Model.Months.Sum(m => m.GiderUsd),
+        GoldOut = Model.Months.Sum(m => m.GoldOut),
+        GoldIn = Model.Months.Sum(m => m.GoldIn)
+    };
+}
+<div class="seg-tabs">
+    <a asp-controller="Kasa" asp-action="Index">Hareketler</a>
+    <a asp-controller="Expenses" asp-action="Index">Giderler</a>
+    <a class="on" asp-controller="Reports" asp-action="Index">Raporlar</a>
+</div>
+
+<div class="card report-card">
+    <div class="report-head">
+        <h2>@Model.Year yılı — aylık özet</h2>
+        <form method="get" class="rep-ctrls">
+            <select name="year" onchange="this.form.submit()" aria-label="Yıl">
+                @foreach (var y in Model.Years)
+                {
+                    <option value="@y" selected="@(y == Model.Year)">@y</option>
+                }
+            </select>
+        </form>
+    </div>
+    <div class="chart-legend">
+        <span><i style="background:var(--cat-1)"></i>Ciro <b>@Fmt.Usd(tot.Ciro)</b></span>
+        <span><i style="background:var(--cat-3)"></i>Tahsilat <b>@Fmt.Usd(tot.Tahsilat)</b></span>
+        <span><i style="background:var(--cat-2)"></i>Gider <b>@Fmt.Usd(tot.GiderUsd)</b></span>
+    </div>
+    <div class="bars">
+        @foreach (var m in Model.Months)
+        {
+            <div class="bar-col" title="@Fmt.Month(Model.Year, m.Month): ciro @Fmt.Usd(m.Ciro), tahsilat @Fmt.Usd(m.Tahsilat), gider @Fmt.Usd(m.GiderUsd)">
+                <div class="bar-stack">
+                    <i style="height:@H(m.Ciro);background:var(--cat-1)"></i>
+                    <i style="height:@H(m.Tahsilat);background:var(--cat-3)"></i>
+                    <i style="height:@H(m.GiderUsd);background:var(--cat-2)"></i>
+                </div>
+                <span>@Fmt.MonthShort(m.Month)</span>
+            </div>
+        }
+    </div>
+    <div class="tbl-scroll">
+        <table class="month-table">
+            <thead><tr><th>Ay</th><th>Sipariş</th><th>Ciro</th><th>Maliyet</th><th>Kâr</th><th>Tahsilat</th><th>Gider</th><th>Tahsilat − Gider</th><th>Altın çıkış</th><th>Altın ödeme</th></tr></thead>
+            <tbody>
+                @foreach (var m in Model.Months)
+                {
+                    <tr>
+                        <td>@Fmt.Month(Model.Year, m.Month)</td>
+                        <td>@m.Jobs</td>
+                        <td>@Fmt.Usd(m.Ciro)</td>
+                        <td>@Fmt.Usd(m.Cost)</td>
+                        <td class="@(m.Profit < 0 ? "neg" : "")">@Fmt.Usd(m.Profit)</td>
+                        <td>@Fmt.Usd(m.Tahsilat)</td>
+                        <td>@Fmt.Usd(m.GiderUsd)</td>
+                        <td class="@(m.Net < 0 ? "neg" : "")">@Fmt.Usd(m.Net)</td>
+                        <td>@Fmt.Gr(m.GoldOut)</td>
+                        <td>@Fmt.Gr(m.GoldIn)</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td>Toplam</td><td>@tot.Jobs</td><td>@Fmt.Usd(tot.Ciro)</td><td>@Fmt.Usd(tot.Cost)</td>
+                    <td class="@(tot.Profit < 0 ? "neg" : "")">@Fmt.Usd(tot.Profit)</td><td>@Fmt.Usd(tot.Tahsilat)</td><td>@Fmt.Usd(tot.GiderUsd)</td>
+                    <td class="@(tot.Net < 0 ? "neg" : "")">@Fmt.Usd(tot.Net)</td><td>@Fmt.Gr(tot.GoldOut)</td><td>@Fmt.Gr(tot.GoldIn)</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    <p class="field-hint">Maliyet: mum + gümüş + altın işçilik + çizim + sipariş masrafları. Kâr = Ciro − Maliyet. Eski borç kayıtları ciroya dahil edilmez.</p>
+</div>
+
+<div class="grid2">
+    <div class="card report-card">
+        <h2>Gider türleri (@Model.Year)</h2>
+        @if (Model.ExpenseByTag.Count == 0)
+        {
+            <p class="report-empty">Bu yıl gider yok.</p>
+        }
+        <ul class="hbar-list">
+            @foreach (var x in Model.ExpenseByTag)
+            {
+                <li>
+                    <span class="nm">@x.Name <small>(@x.Count)</small></span>
+                    <span class="hbar"><i style="width:@(Math.Round(x.Value / tagMax * 100m, 1).ToString(System.Globalization.CultureInfo.InvariantCulture))%"></i></span>
+                    <span class="vl">@Fmt.Usd(x.Value)<small>@Fmt.Tl(x.Extra)</small></span>
+                </li>
+            }
+        </ul>
+    </div>
+    <div class="card report-card">
+        <h2>İşlem türüne göre ciro (@Model.Year)</h2>
+        @if (Model.KindSplit.Count == 0)
+        {
+            <p class="report-empty">Bu yıl sipariş yok.</p>
+        }
+        <ul class="hbar-list">
+            @{ var kindMax = Model.KindSplit.Select(x => x.Value).DefaultIfEmpty(0m).Max(); if (kindMax <= 0) { kindMax = 1; } }
+            @foreach (var x in Model.KindSplit)
+            {
+                <li>
+                    <span class="nm">@x.Name <small>(@x.Count sipariş)</small></span>
+                    <span class="hbar"><i style="width:@(Math.Round(x.Value / kindMax * 100m, 1).ToString(System.Globalization.CultureInfo.InvariantCulture))%;background:var(--cat-4)"></i></span>
+                    <span class="vl">@Fmt.Usd(x.Value)</span>
+                </li>
+            }
+        </ul>
+    </div>
+</div>
+
+<div class="card report-card">
+    <h2>En çok iş yapılan müşteriler (@Model.Year)</h2>
+    @if (Model.TopCustomers.Count == 0)
+    {
+        <p class="report-empty">Bu yıl sipariş yok.</p>
+    }
+    @{ var rank = 0; }
+    @foreach (var x in Model.TopCustomers)
+    {
+        rank++;
+        <a class="top-cust-row" asp-controller="Customers" asp-action="Details" asp-route-id="@x.Id">
+            <span class="tc-rank">@rank</span>
+            <span class="tc-name">@x.Name</span>
+            <span class="tc-n">@x.Count sipariş · kâr @Fmt.Usd(x.Extra)</span>
+            <span class="tc-v">@Fmt.Usd(x.Value)</span>
+        </a>
+    }
+</div>

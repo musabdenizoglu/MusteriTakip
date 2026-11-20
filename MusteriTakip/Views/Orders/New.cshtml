@@ -1,0 +1,37 @@
+@{
+    ViewData["Title"] = "Yeni Sipariş";
+    var customers = (List<Customer>)ViewBag.Customers;
+}
+<div class="card order-card">
+    <h2>Yeni Sipariş</h2>
+    <p class="field-hint">Siparişi hangi müşteriye gireceksiniz? Yazmaya başlayın ya da listeden seçin.</p>
+    <form method="get" asp-action="Create" id="pickCustForm">
+        <label for="pickCust">Müşteri</label>
+        <input type="text" id="pickCust" list="custNames" class="upper" autocomplete="off" placeholder="Seçin / yazın" autofocus />
+        <datalist id="custNames">
+            @foreach (var c in customers)
+            {
+                <option value="@c.Name" data-id="@c.Id">@c.Code</option>
+            }
+        </datalist>
+        <input type="hidden" name="customerId" id="pickCustId" />
+        <p class="error" id="pickErr"></p>
+        <div class="confirm-actions">
+            <a class="btn secondary" asp-controller="Customers" asp-action="Create">+ Yeni müşteri</a>
+            <button type="submit" class="btn">Devam →</button>
+        </div>
+    </form>
+</div>
+@section Scripts {
+    <script>
+        (function () {
+            var f = document.getElementById('pickCustForm'), inp = document.getElementById('pickCust'), hid = document.getElementById('pickCustId');
+            f.addEventListener('submit', function (e) {
+                var v = inp.value.trim().toLocaleUpperCase('tr-TR'), id = '';
+                document.querySelectorAll('#custNames option').forEach(function (o) { if (o.value === v) id = o.dataset.id; });
+                if (!id) { e.preventDefault(); document.getElementById('pickErr').textContent = v ? 'Bu isimde kayıtlı müşteri yok. Listeden seçin ya da yeni müşteri ekleyin.' : 'Lütfen müşteriyi seçin.'; return; }
+                hid.value = id;
+            });
+        })();
+    </script>
+}

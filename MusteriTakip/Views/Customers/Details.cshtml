@@ -1,0 +1,169 @@
+@model CustomerDetailsVm
+@{
+    var c = Model.Customer;
+    ViewData["Title"] = c.Name;
+    var t = Model.Totals;
+    var here = Context.Request.Path + Context.Request.QueryString;
+    string Spec(decimal? v, int d) => v.HasValue ? v.Value.ToString("N" + d, Fmt.Tr) : "";
+}
+
+<div class="screen-actions">
+    <span class="back-pair"><a class="btn secondary" asp-action="Index">← Müşteriler</a></span>
+    <span class="cust-head-btns">
+        <a class="btn secondary" asp-action="Edit" asp-route-id="@c.Id">✎ Düzenle</a>
+        <a class="btn secondary wa-btn" target="_blank" rel="noopener" href="https://wa.me/@Fmt.WaPhone(c.Phone)?text=@Uri.EscapeDataString(Model.WhatsAppText)">WhatsApp ile hesap özeti</a>
+        <a class="btn secondary" asp-action="Statement" asp-route-id="@c.Id" target="_blank">Hesap ekstresi / PDF</a>
+    </span>
+</div>
+
+<div class="active-cust">
+    <div class="name-row">
+        <div class="avatar">
+            @if (c.ImagePath != null)
+            {
+                <img src="@c.ImagePath" alt="" data-zoom data-caption="@c.Name" />
+            }
+            else
+            {
+                <span class="ini-av" style="background:@Fmt.AvatarColor(c.Name)">@Fmt.Initials(c.Name)</span>
+            }
+        </div>
+        <h2>@c.Name</h2>
+        @if (c.Code != null)
+        {
+            <span class="kind-tag">@c.Code</span>
+        }
+        <span class="phone">@c.Phone @(c.Email != null ? " · " + c.Email : "")</span>
+    </div>
+
+    <div class="cust-toolbar">
+        <div class="rec-btns">
+            <a class="btn" asp-controller="Orders" asp-action="Create" asp-route-customerId="@c.Id">+ Yeni Sipariş</a>
+            <a class="btn secondary" asp-controller="Payments" asp-action="Create" asp-route-customerId="@c.Id">+ Ödeme Ekle</a>
+            <a class="btn secondary" asp-controller="Orders" asp-action="AddDebt" asp-route-customerId="@c.Id">+ Borç Ekle</a>
+        </div>
+        <form method="get" class="kind-row inline">
+            <input type="hidden" name="tab" value="@Model.Tab" />
+            <label for="kind">İşlem türü</label>
+            <select id="kind" name="kind" onchange="this.form.submit()">
+                <option value="" selected="@(string.IsNullOrEmpty(Model.KindFilter))">Tümü</option>
+                <option value="Altın" selected="@(Model.KindFilter == "Altın")">Altın</option>
+                <option value="Kalıp" selected="@(Model.KindFilter == "Kalıp")">Kalıp</option>
+            </select>
+        </form>
+    </div>
+
+    <div class="kasa-stats cust-stats">
+        <div class="kasa-stat"><span class="label">Ciro</span><span class="amount">@Fmt.Usd(t.Ciro)</span></div>
+        <div class="kasa-stat"><span class="label">Alınan Ödeme</span><span class="amount">@Fmt.Usd(t.Paid)</span></div>
+        <div class="kasa-stat result"><span class="label">Kalan Bakiye</span><span class="amount @(t.Rest > 0.004m ? "neg" : "")">@Fmt.Usd(t.Rest)</span></div>
+    </div>
+    <div class="kasa-stats cust-stats gold-stats">
+        <div class="kasa-stat"><span class="label">Toplam Altın Ciro</span><span class="amount">@Fmt.Gr(t.GoldTotal)</span></div>
+        <div class="kasa-stat"><span class="label">Alınan Altın Ödeme</span><span class="amount">@Fmt.Gr(t.GoldPaid)</span></div>
+        <div class="kasa-stat result"><span class="label">Kalan Altın Bakiye</span><span class="amount">@Fmt.Gr(t.GoldRest)</span><span class="sub gold-val" data-gold-value="@Fmt.Input(t.GoldRest)"></span></div>
+    </div>
+
+    <form method="post" asp-action="SaveNote" asp-route-id="@c.Id" class="note-form">
+        <textarea name="note" class="cust-note" rows="1" placeholder="Müşteri notu…">@c.Note</textarea>
+        <button class="btn secondary sm" type="submit">Notu kaydet</button>
+    </form>
+
+    <div class="seg-tabs">
+        <a class="@(Model.Tab == "records" ? "on" : "")" asp-action="Details" asp-route-id="@c.Id" asp-route-kind="@Model.KindFilter">Sipariş geçmişi (@Model.Records.Count)</a>
+        <a class="@(Model.Tab == "cari" ? "on" : "")" asp-action="Details" asp-route-id="@c.Id" asp-route-tab="cari" asp-route-kind="@Model.KindFilter">Hesap hareketleri (@Model.History.Count)</a>
+    </div>
+
+    @if (Model.Tab == "records")
+    {
+        <div id="recordsList">
+            @if (Model.Records.Count == 0)
+            {
+                <div class="empty-note">Bu müşteri için henüz sipariş yok. “+ Yeni Sipariş” ile ilk siparişi ekleyin.</div>
+            }
+            @foreach (var r in Model.Records.Where(r => Model.KindFilter == null || Fmt.KindText(r.Kind) == Model.KindFilter))
+            {
+                var cost = LedgerService.RecordCost(r);
+                var profit = LedgerService.RecordProfit(r);
+                var gold = LedgerService.RecGoldOut(r);
+                <div class="rec-row">
+                    <div class="thumb">
+                        @if (r.ImagePath != null)
+                        {
+                            <img src="@r.ImagePath" alt="@r.Model" data-zoom data-caption="@(r.Code + " · " + r.Model)" />
+                        }
+                        else
+                        {
+                            <span class="ph">💍</span>
+                        }
+                    </div>
+                    <div class="rec-main">
+                        <div class="rec-top">
+                            <div class="model">
+                                @if (r.Code != null)
+                                {
+                                    <b class="code-chip">@r.Code</b>
+                                }
+                                @r.Model
+                                <span class="kind-tag @(r.Kind == IslemTuru.Kalip ? "k-kalip" : "")">@Fmt.KindText(r.Kind)</span>
+                                @if (!string.IsNullOrEmpty(r.Note))
+                                {
+                                    <span class="note-info" title="@r.Note">i</span>
+                                }
+                                @if (r.SnapDate != null)
+                                {
+                                    <div class="snap-note">Kayıt fiyatları: mum @Fmt.Num(r.SnapMumGrFiyat) $ · gümüş @Fmt.Num(r.SnapGumusGrFiyat) $ · altın işç. @Fmt.Num(r.SnapAltinGrFiyat) $@(r.SnapUsdTry > 0 ? " · kur " + Fmt.Rate(r.SnapUsdTry) : "")</div>
+                                }
+                            </div>
+                            <span class="date">@Fmt.Date(r.Date)</span>
+                            <div class="price-col">
+                                <span class="price">@Fmt.Usd(r.Price)</span>
+                                @if (profit != null)
+                                {
+                                    <span class="profit-sub">Maliyet @Fmt.Usd(cost) · Kâr <b class="@(profit < 0 ? "neg" : "")">@Fmt.Usd(profit)</b></span>
+                                }
+                            </div>
+                            <span class="row-actions">
+                                <a class="dup" asp-controller="Orders" asp-action="Duplicate" asp-route-id="@r.Id" title="Kopyala">⧉</a>
+                                <a class="edit" asp-controller="Orders" asp-action="Edit" asp-route-id="@r.Id" title="Düzenle">✎</a>
+                                <form method="post" asp-controller="Orders" asp-action="Delete" asp-route-id="@r.Id" asp-route-returnUrl="@here" data-confirm="Bu sipariş çöp kutusuna taşınsın mı?"><button class="del" title="Sil">✕</button></form>
+                            </span>
+                        </div>
+                        <div class="spec-wrap">
+                            <table class="spec-table">
+                                <tr><th>Mum (gr)</th><th>Mum ($)</th><th>Gümüş (gr)</th><th>Gümüş ($)</th><th>Altın (gr)</th><th>Milyem</th><th>Çıkış (gr)</th><th>Altın ($)</th><th>Çizim ($)</th><th>Masraf ($)</th></tr>
+                                <tr>
+                                    <td>@Spec(r.MumGram, 3)</td><td>@Spec(r.MumIscilik, 2)</td>
+                                    <td>@Spec(r.GumusGram, 3)</td><td>@Spec(r.GumusUsd, 2)</td>
+                                    <td>@Spec(r.AltinGram, 2)</td><td>@Spec(r.AltinMilyem, 0)</td><td>@(gold > 0 ? gold.ToString("N3", Fmt.Tr) : "")</td><td>@Spec(r.AltinIscilik, 2)</td>
+                                    <td>@Spec(r.Cizim, 2)</td>
+                                    <td title="@(string.Join(", ", r.Expenses.Select(e => e.Description + " " + Fmt.Usd(e.Amount))))">@(r.Expenses.Count > 0 ? Fmt.Num(LedgerService.ExpenseTotal(r)) : "")</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="records payment-section">
+            <div class="cari-actions">
+                <a class="qa" asp-controller="Payments" asp-action="Create" asp-route-customerId="@c.Id"><span class="qa-i k-purple">＄</span>Ödeme Ekle</a>
+                <a class="qa" asp-controller="Orders" asp-action="AddDebt" asp-route-customerId="@c.Id"><span class="qa-i k-red">＋</span>Borç Ekle</a>
+                <a class="qa" asp-action="Statement" asp-route-id="@c.Id" target="_blank"><span class="qa-i k-green">⎙</span>Ekstre</a>
+            </div>
+            <div id="historyList">
+                @if (Model.History.Count == 0)
+                {
+                    <div class="empty-note">Henüz borç veya ödeme yok.</div>
+                }
+                @foreach (var m in Model.History)
+                {
+                    <partial name="_MovementRow" model="m" view-data='new ViewDataDictionary(ViewData) { ["ShowCustomer"] = false, ["ReturnUrl"] = here }' />
+                }
+            </div>
+        </div>
+    }
+</div>

@@ -1,0 +1,91 @@
+@model KasaVm
+@{
+    ViewData["Title"] = "Genel Kasa";
+    var t = Model.Totals;
+    var here = Context.Request.Path + Context.Request.QueryString;
+}
+<div class="seg-tabs">
+    <a class="on" asp-controller="Kasa" asp-action="Index">Hareketler</a>
+    <a asp-controller="Expenses" asp-action="Index">Giderler</a>
+    <a asp-controller="Reports" asp-action="Index">Raporlar</a>
+</div>
+
+<div class="card kasa-sum-card">
+    <h2>Kasa Son Durumu</h2>
+    <div class="kasa-strip">
+        <div class="ks-group">
+            <span class="ks-title">Dolar ($)</span>
+            <div class="kasa-stats">
+                <div class="kasa-stat"><span class="label">Ciro</span><span class="amount">@Fmt.Usd(t.Ciro)</span></div>
+                <div class="kasa-stat"><span class="label">Tahsilat</span><span class="amount">@Fmt.Usd(t.Tahsilat)</span></div>
+                <div class="kasa-stat">
+                    <span class="label">Gider</span><span class="amount">@Fmt.Usd(t.GiderUsd)</span>
+                    @if (t.MissingRate > 0)
+                    {
+                        <span class="sub warn">@t.MissingRate giderin dolar kuru girilmemiş</span>
+                    }
+                    else
+                    {
+                        <span class="sub">@Fmt.Tl(t.GiderTl)</span>
+                    }
+                </div>
+                <div class="kasa-stat result"><span class="label">Kasa Bakiye</span><span class="amount @(t.Bakiye < 0 ? "neg" : "")">@Fmt.Usd(t.Bakiye)</span></div>
+            </div>
+        </div>
+        <div class="ks-group">
+            <span class="ks-title">Altın (gr)</span>
+            <div class="kasa-stats kasa-gold-stats">
+                <div class="kasa-stat"><span class="label">Toplam Altın Ciro</span><span class="amount">@Fmt.Gr(t.GoldTotal)</span></div>
+                <div class="kasa-stat"><span class="label">Alınan Altın Ödeme</span><span class="amount">@Fmt.Gr(t.GoldPaid)</span></div>
+                <div class="kasa-stat result"><span class="label">Kalan Altın Bakiye</span><span class="amount">@Fmt.Gr(t.GoldRest)</span><span class="sub gold-val" data-gold-value="@Fmt.Input(t.GoldRest)"></span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card activity-card kasa-list-card">
+    <div class="records-head kasa-head">
+        <h2>Hareketler</h2>
+        <div class="kasa-head-btns">
+            <a class="qa" asp-controller="Payments" asp-action="Create" asp-route-fromKasa="true"><span class="qa-i k-purple">＄</span>Ödeme Ekle</a>
+            <a class="qa" asp-controller="Expenses" asp-action="Index"><span class="qa-i k-red">−</span>Gider Ekle</a>
+            <a class="qa" asp-action="Excel" asp-route-q="@Model.Search" asp-route-period="@Model.Period"><span class="qa-i k-green">⤓</span>Excel'e aktar</a>
+        </div>
+    </div>
+    <form method="get" class="kasa-filter-row">
+        <div class="quick-search">
+            <label for="q">Hızlı Arama</label>
+            <input type="text" id="q" name="q" value="@Model.Search" placeholder="Müşteri, model, tarih, tür… (virgülle birden fazla)" />
+        </div>
+        <div class="kasa-period">
+            <label for="period">Dönem</label>
+            <select id="period" name="period" onchange="this.form.submit()">
+                <option value="" selected="@(string.IsNullOrEmpty(Model.Period))">Tümü</option>
+                <option value="m0" selected="@(Model.Period == "m0")">Bu ay</option>
+                <option value="m1" selected="@(Model.Period == "m1")">Geçen ay</option>
+                <option value="y0" selected="@(Model.Period == "y0")">Bu yıl</option>
+                <option value="y1" selected="@(Model.Period == "y1")">Geçen yıl</option>
+            </select>
+        </div>
+    </form>
+    @if (Model.Filtered)
+    {
+        <div class="kasa-period-sum">
+            <span>@Model.Items.Count hareket</span>
+            <span>Borç <b>@Fmt.Usd(Model.SumDebt)</b></span>
+            <span>Ödeme <b>@Fmt.Usd(Model.SumPay)</b></span>
+            <span>Gider <b>@Fmt.Usd(Model.SumExpense)</b></span>
+            <span>Ödeme − Gider <b>@Fmt.Usd(Model.SumPay - Model.SumExpense)</b></span>
+        </div>
+    }
+    <div id="kasaList" class="scroll-list">
+        @if (Model.Items.Count == 0)
+        {
+            <div class="empty-note">Henüz cari hareket yok. Sipariş ya da ödeme eklediğinizde burada listelenir.</div>
+        }
+        @foreach (var m in Model.Items)
+        {
+            <partial name="_MovementRow" model="m" view-data='new ViewDataDictionary(ViewData) { ["ReturnUrl"] = here }' />
+        }
+    </div>
+</div>

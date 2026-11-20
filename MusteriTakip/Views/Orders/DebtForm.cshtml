@@ -1,0 +1,27 @@
+@model DebtFormVm
+@{
+    var isNew = Model.Id == null;
+    ViewData["Title"] = isNew ? "Borç Ekle" : "Borcu Düzenle";
+}
+<span class="back-pair"><a class="btn secondary" asp-controller="Customers" asp-action="Details" asp-route-id="@Model.CustomerId" asp-route-tab="cari">← @Model.CustomerName</a></span>
+<div class="card order-card">
+    <h2>@ViewData["Title"]</h2>
+    <p class="pay-cust">@Model.CustomerName — sipariş dışında müşterinin dolar hesabına yazılan borç (eski borç, devir vb.)</p>
+    <form method="post" asp-action="@(isNew ? "AddDebt" : "EditDebt")" asp-route-id="@Model.Id">
+        <input type="hidden" asp-for="CustomerId" />
+        <label asp-for="Description">Açıklama</label>
+        <input asp-for="Description" />
+        <span class="error" asp-validation-for="Description"></span>
+        <label asp-for="Amount">Tutar ($)</label>
+        <input asp-for="Amount" type="number" min="0" step="0.01" />
+        <span class="error" asp-validation-for="Amount"></span>
+        <label asp-for="Date">Tarih</label>
+        <input asp-for="Date" type="date" />
+        <label asp-for="Note">Not</label>
+        <textarea asp-for="Note" rows="2"></textarea>
+        <div class="confirm-actions">
+            <a class="btn secondary" asp-controller="Customers" asp-action="Details" asp-route-id="@Model.CustomerId" asp-route-tab="cari">Vazgeç</a>
+            <button type="submit" class="btn">Kaydet</button>
+        </div>
+    </form>
+</div>

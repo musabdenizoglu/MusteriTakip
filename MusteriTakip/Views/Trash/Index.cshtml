@@ -1,0 +1,36 @@
+@model List<TrashItem>
+@{
+    ViewData["Title"] = "Çöp Kutusu";
+    string Kind(string t) => t switch { "customer" => "Müşteri", "record" => "Sipariş", "debt" => "Borç", "payment" => "Ödeme", _ => "Gider" };
+}
+<div class="card">
+    <div class="records-head">
+        <h2>Çöp Kutusu <span class="count-pill">@Model.Count</span></h2>
+        @if (Model.Count > 0)
+        {
+            <form method="post" asp-action="Empty" data-confirm="Çöp kutusundaki her şey kalıcı olarak silinsin mi? Bu işlem geri alınamaz.">
+                <button class="btn danger" type="submit">Çöp kutusunu boşalt</button>
+            </form>
+        }
+    </div>
+    <p class="field-hint">Silinenler 30 gün burada tutulur, sonra kendiliğinden kalıcı olarak silinir.</p>
+    @if (Model.Count == 0)
+    {
+        <div class="empty-note">Çöp kutusu boş.</div>
+    }
+    <div class="trash-list">
+        @foreach (var t in Model)
+        {
+            <div class="trash-row">
+                <span class="tr-k">@Kind(t.Type)</span>
+                <span class="tr-t">@t.Title</span>
+                <span class="tr-v">@t.Value</span>
+                <span class="tr-d">@t.DeletedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm", Fmt.Tr)</span>
+                <span class="tr-b">
+                    <form method="post" asp-action="Restore" asp-route-type="@t.Type" asp-route-id="@t.Id"><button class="btn secondary sm" type="submit">↩ Geri al</button></form>
+                    <form method="post" asp-action="Purge" asp-route-type="@t.Type" asp-route-id="@t.Id" data-confirm="Kalıcı olarak silinsin mi?"><button class="btn secondary sm tr-del" type="submit">Kalıcı sil</button></form>
+                </span>
+            </div>
+        }
+    </div>
+</div>

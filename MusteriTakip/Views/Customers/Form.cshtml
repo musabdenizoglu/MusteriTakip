@@ -1,0 +1,75 @@
+@model CustomerFormVm
+@{
+    var isNew = Model.Id == null;
+    ViewData["Title"] = isNew ? "Müşteri Kaydı" : "Müşteriyi Düzenle";
+}
+<span class="back-pair"><a class="btn secondary" href="javascript:history.back()">← Geri</a></span>
+<div class="card">
+    <h2>@ViewData["Title"]</h2>
+    <form method="post" asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@Model.Id" data-image-form>
+        <div asp-validation-summary="ModelOnly" class="error"></div>
+        <div class="newcust-top">
+            <div class="newcust-fields">
+                <label asp-for="Name">Ad Soyad</label>
+                <input asp-for="Name" class="upper" autocomplete="off" required />
+                <span class="error" asp-validation-for="Name"></span>
+
+                <label asp-for="Phone">Telefon</label>
+                <input asp-for="Phone" type="tel" placeholder="05xx xxx xx xx" />
+
+                <label asp-for="Email">E-posta</label>
+                <input asp-for="Email" type="email" placeholder="ornek@eposta.com" />
+                <span class="error" asp-validation-for="Email"></span>
+
+                <label asp-for="Code">Müşteri kodu (2-3 harf)</label>
+                <input asp-for="Code" class="upper" maxlength="3" autocomplete="off" placeholder="Boşsa otomatik (örn. MSB)" />
+                <span class="error" asp-validation-for="Code"></span>
+
+                @if (isNew)
+                {
+                    <label asp-for="OpeningBalance">Açılış bakiyesi / eski borç ($)</label>
+                    <input asp-for="OpeningBalance" type="number" min="0" step="0.01" placeholder="İsteğe bağlı" />
+                    <label asp-for="OpeningDesc">Açıklama</label>
+                    <input asp-for="OpeningDesc" placeholder="Boşsa: Açılış (Eski) bakiyesi" />
+                }
+
+                <label asp-for="Note">Not</label>
+                <textarea asp-for="Note" rows="2" class="cust-note" placeholder="Müşteriyle ilgili not (isteğe bağlı)"></textarea>
+            </div>
+            <div class="upload-btn profile-upload">
+                <label class="thumb round" for="profileFile" data-thumb>
+                    @if (Model.ExistingImage != null)
+                    {
+                        <img src="@Model.ExistingImage" alt="" />
+                    }
+                    else
+                    {
+                        <span>👤</span>
+                    }
+                </label>
+                <input type="file" id="profileFile" accept="image/*" data-image-input="ImageData" data-max="600" />
+                <input type="hidden" asp-for="ImageData" />
+                <span class="lbl">Profil resmi</span>
+                @if (Model.ExistingImage != null)
+                {
+                    <label class="chk"><input type="checkbox" asp-for="RemoveImage" /> Resmi kaldır</label>
+                }
+            </div>
+        </div>
+        <button type="submit" class="btn">@(isNew ? "Kaydet ve Sipariş Gir" : "Kaydet")</button>
+        @if (!isNew)
+        {
+            <a class="btn secondary" asp-action="Details" asp-route-id="@Model.Id">Vazgeç</a>
+        }
+    </form>
+</div>
+@if (!isNew)
+{
+    <div class="card danger-card">
+        <h2>Müşteriyi sil</h2>
+        <p class="field-hint">Müşteri, siparişleri ve ödemeleriyle birlikte çöp kutusuna taşınır; 30 gün içinde geri alabilirsiniz.</p>
+        <form method="post" asp-action="Delete" asp-route-id="@Model.Id" data-confirm="Bu müşteri çöp kutusuna taşınsın mı?">
+            <button class="btn danger" type="submit">🗑 Müşteriyi sil</button>
+        </form>
+    </div>
+}

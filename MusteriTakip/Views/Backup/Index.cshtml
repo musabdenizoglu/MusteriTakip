@@ -1,0 +1,25 @@
+@{
+    ViewData["Title"] = "Yedekleme";
+}
+<div class="card">
+    <h2>Yedek Al</h2>
+    <p class="field-hint">Tüm müşteriler, siparişler (resimler dahil), ödemeler, giderler ve ayarlar tek bir .json dosyasına kaydedilir. Dosya, HTML sürümündeki “Yedeği yükle” ile de açılabilir.</p>
+    <div class="store-row">
+        <a class="btn yellow" asp-action="Export" asp-route-images="true">⬇ Yedek Al (resimlerle)</a>
+        <a class="btn secondary" asp-action="Export" asp-route-images="false">⬇ Yedek Al (resimsiz, küçük dosya)</a>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Yedeği Yükle</h2>
+    <p class="field-hint">
+        HTML sürümünden geçiş için: tarayıcıdaki Müşteri Takip programında <b>⬇ Yedek Al</b>'a basın, inen
+        <code>musteri-takip-…json</code> dosyasını burada seçin. Müşteriler, siparişler, ödemeler, giderler, gider etiketleri, fiyat ayarları,
+        kullanıcılar ve resimler veritabanına aktarılır.
+    </p>
+    <form method="post" asp-action="Import" enctype="multipart/form-data" data-confirm-if="replaceAll" data-confirm-text="Mevcut TÜM kayıtlar silinip yedektekilerle değiştirilecek. Emin misiniz?">
+        <input type="file" name="file" accept=".json,application/json" required />
+        <label class="chk"><input type="checkbox" name="replaceAll" value="true" id="replaceAll" /> Mevcut kayıtları sil, yedektekilerle değiştir (önerilen; işaretlenmezse yedektekiler mevcutların yanına eklenir)</label>
+        <button type="submit" class="btn">⬆ Yedeği yükle</button>
+    </form>
+</div>
