@@ -14,6 +14,7 @@ public class HomeController : Controller
 
     public async Task<IActionResult> Index(string? q)
     {
+        //bu metod uygulamanın başlangıç metodudur.
         var customers = await _ledger.LoadCustomersAsync();
         var expenses = await _ledger.LoadExpensesAsync();
         var today = Dates.Today;
