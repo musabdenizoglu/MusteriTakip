@@ -77,8 +77,10 @@ public class BackupService
             var existing = (await _db.Users.Select(u => u.UserName).ToListAsync()).ToHashSet(StringComparer.OrdinalIgnoreCase);
             foreach (var u in us.EnumerateObject())
             {
-                if (existing.Contains(u.Name) || u.Value.ValueKind != JsonValueKind.String) continue;
-                var user = new AppUser { UserName = Cut(u.Name, 60), DisplayName = Cut(u.Name, 80), CreatedAt = DateTime.UtcNow };
+                var uname = Cut(u.Name.Trim(), 60)!;
+                // Aynı ad yedekte iki kez (ör. "Ali" / "ali") geçse de benzersiz indeks bozulmasın
+                if (uname == "" || u.Value.ValueKind != JsonValueKind.String || !existing.Add(uname)) continue;
+                var user = new AppUser { UserName = uname, DisplayName = Cut(u.Name.Trim(), 80), CreatedAt = DateTime.UtcNow };
                 user.PasswordHash = _hasher.HashPassword(user, u.Value.GetString() ?? "");
                 _db.Users.Add(user);
                 res.Users++;
@@ -144,7 +146,7 @@ public class BackupService
                     }
                     if (r.TryGetProperty("expenses", out var exs) && exs.ValueKind == JsonValueKind.Array)
                         foreach (var e in exs.EnumerateArray())
-                            rec.Expenses.Add(new OrderExpense { Description = Cut(Str(e, "desc"), 160), Amount = Dec(e, "amount") ?? 0m });
+                            rec.Expenses.Add(new OrderExpense { Description = Cut(Str(e, "desc"), 160) ?? "", Amount = Dec(e, "amount") ?? 0m });
                     var rimg = Str(r, "image");
                     if (!string.IsNullOrEmpty(rimg)) { rec.ImagePath = await _img.SaveDataUrlAsync(rimg, "orders"); if (rec.ImagePath != null) res.Images++; }
                     cust.Records.Add(rec);
@@ -218,15 +220,21 @@ public class BackupService
 
     ExpenseTag? EnsureTag(List<ExpenseTag> tags, string? name)
     {
-        name = (name ?? "").Trim();
+        name = Cut((name ?? "").Trim(), 60)!.TrimEnd();
         if (name == "") return null;
-        var t = tags.FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.CurrentCultureIgnoreCase));
+        // SQL Server harmanlaması "Kira" ile "KİRA"yı aynı sayar; uygulama kültürü invariant olduğu için
+        // karşılaştırmayı Türkçe büyük harfe çevirip (İ/I farkını da yok sayarak) yapıyoruz.
+        var key = TagKey(name);
+        var t = tags.FirstOrDefault(x => TagKey(x.Name) == key);
         if (t != null) return t;
         t = new ExpenseTag { Name = Cut(name, 60)!, SortOrder = tags.Count + 1 };
         tags.Add(t);
         _db.ExpenseTags.Add(t);
         return t;
     }
+
+    static readonly CultureInfo TrCulture = CultureInfo.GetCultureInfo("tr-TR");
+    static string TagKey(string s) => s.Trim().ToUpper(TrCulture).Replace('İ', 'I');
 
     // ======================= DIŞA AKTARMA =======================
 

@@ -251,7 +251,7 @@ try {
   }
   window.__dzGive = give;
   // Buton üstüne bırakma: resmi sakla ve butonu çalıştır (yeni sipariş penceresi resimle açılır)
-  var BTN_SEL = '#goOrderBtn, #newRecordBtn, #fmSide .fm-item[data-k="order"]';
+  var BTN_SEL = '#goOrderBtn, #newRecordBtn, #mhPlus, .mt-order[data-mt="order"], #fmSide .fm-item[data-k="order"]';
   function btnZones(){
     let cur = null;
     function clearCur(){ if(cur){ cur.classList.remove('dz-over'); cur = null; } }
@@ -285,9 +285,29 @@ try {
       give(inputId, f);
     });
   }
+  // Sipariş kartı (#recModal) sonradan pencere olarak eklendiği için belge düzeyinde dinlenir
+  function recZone(){
+    let cur = null;
+    function card(e){ return e.target && e.target.closest ? e.target.closest('#recModal .rec-card') : null; }
+    function clearCur(){ if(cur){ cur.classList.remove('dz-over'); cur = null; } }
+    document.addEventListener('dragover', function(e){
+      if(!hasFiles(e)) return; const c = card(e);
+      if(!c){ clearCur(); return; }
+      e.preventDefault(); try{ e.dataTransfer.dropEffect = 'copy'; }catch(_){}
+      if(cur !== c){ clearCur(); cur = c; c.classList.add('dz-over'); }
+    });
+    document.addEventListener('dragleave', function(e){ if(cur && (!e.relatedTarget || !cur.contains(e.relatedTarget))) clearCur(); });
+    document.addEventListener('drop', function(e){
+      if(!hasFiles(e)) return; const c = card(e); clearCur();
+      if(!c) return;
+      e.preventDefault(); e.stopPropagation();
+      const f = Array.prototype.find.call(e.dataTransfer.files||[], function(x){ return /^image\//i.test(x.type||''); });
+      give('recordImage', f);
+    });
+  }
   function init(){
     btnZones();
-    zone(document.querySelector('#recModal .rec-card') || document.getElementById('recModal'), 'recordImage');
+    recZone();
     zone(document.getElementById('custEditForm') || document.getElementById('custEditModal'), 'ceImage');
     const pf = document.getElementById('custProfileImage'), ef = document.getElementById('custEntryImage');
     zone(pf && pf.closest('.upload-btn'), 'custProfileImage');

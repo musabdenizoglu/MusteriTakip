@@ -445,7 +445,12 @@
                 if (inp.hasAttribute('data-watermark')) { form.__rawImage = raw; hidden.value = ''; }
                 else hidden.value = raw;
                 var thumb = form.querySelector('[data-thumb]');
-                if (thumb) thumb.innerHTML = '<img src="' + raw + '" alt="">';
+                if (thumb) {   // önizlemeyi değiştir; "resmi kaldır" (×) düğmesi yerinde kalsın
+                    var tx = thumb.querySelector('.thumb-x');
+                    Array.prototype.slice.call(thumb.childNodes).forEach(function (n) { if (n !== tx) n.remove(); });
+                    var im = document.createElement('img'); im.src = raw; im.alt = '';
+                    thumb.insertBefore(im, tx || null);
+                }
                 var rm = form.querySelector('[name="RemoveImage"][type=checkbox]'); if (rm) rm.checked = false;
             });
         });
@@ -597,6 +602,7 @@
     function wireModal(m, injected) {
         if (m.__wired) return; m.__wired = true;
         function close() {
+            window.__dropImg = null;   // vazgeçildi: butona bırakılan resim bir sonraki siparişe taşınmasın
             if (injected) { m.classList.remove('open'); setTimeout(function () { m.remove(); }, 200); }
             else if (m.dataset.back) location.href = m.dataset.back;
             else history.back();
@@ -662,6 +668,11 @@
             m.removeAttribute('data-standalone'); m.classList.add('open');
             initForms(m); wireModal(m, true);
             m.querySelectorAll('script').forEach(function (old) { var s = document.createElement('script'); s.textContent = old.textContent; old.replaceWith(s); });
+            // "Yeni Sipariş" butonuna bırakılan resim: sipariş kartı açılınca resim alanına eklenir
+            if (window.__dropImg) {
+                if (m.querySelector('#recordImage') && window.__dzGive) { window.__dzGive('recordImage', window.__dropImg); window.__dropImg = null; }
+                else if (m.id !== 'pickCustModal') window.__dropImg = null;
+            }
         } catch (err) { location.href = url; }
     }, true);
 })();

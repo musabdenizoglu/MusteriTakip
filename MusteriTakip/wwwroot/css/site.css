@@ -3398,9 +3398,11 @@ html[data-skin="kurumsal"]:not([data-theme="dark"]) body .card, html[data-skin="
 
 /* ==== kurumsalDStyleCss ==== */
 /* Konsept D: yuvarlak köşeli, soluk kesik çizgili kart çerçevesi */
-html[data-skin="kurumsal"]:not([data-theme="dark"]) body .card, html[data-skin="kurumsal"]:not([data-theme="dark"]) body #activeCustBox, html[data-skin="kurumsal"]:not([data-theme="dark"]) body .home-panel > .card{outline:2px dashed #B3C1D5 !important; outline-offset:0 !important; border-radius:14px !important;}
+/* Bütün kartlar: kesik çizgi (açık mod) */
+html[data-skin="kurumsal"]:not([data-theme="dark"]) body .card, html[data-skin="kurumsal"]:not([data-theme="dark"]) body #activeCustBox, html[data-skin="kurumsal"]:not([data-theme="dark"]) body .home-panel > .card, html[data-skin="kurumsal"]:not([data-theme="dark"]) body .confirm-card:not(.dz-over), html:not([data-theme="dark"]) body .login-card{outline:2px dashed #B3C1D5 !important; outline-offset:-2px !important; border-radius:14px !important;}
+/* Pencere kartları (bütün açılır pencereler): kartlarla aynı görünüm — düz kenarlık yok, aynı hafif gölge (kesik çizgi yukarıdaki kuraldan) */
+html[data-skin="kurumsal"]:not([data-theme="dark"]) body .confirm-card{border:0 !important; box-shadow:0 1px 3px rgba(30,40,60,.08) !important;}
 html[data-skin="kurumsal"]:not([data-theme="dark"]) body #activeCustBox{padding:16px 18px; background:var(--panel);}
-html[data-skin="kurumsal"]:not([data-theme="dark"]) body #monthCard, html[data-skin="kurumsal"]:not([data-theme="dark"]) body #monthCard .m-stat, html[data-skin="kurumsal"]:not([data-theme="dark"]) body .kasa-stat{outline:0 !important;}
 /* Konsept D fiyat yazısı: Georgia, kalın, sakin koyu ton */
 html[data-skin="kurumsal"]:not([data-theme="dark"]) body{--font-num:Georgia,'Palatino Linotype',serif;}
 html[data-skin="kurumsal"]:not([data-theme="dark"]) body #monthCard .m-stat b, html[data-skin="kurumsal"]:not([data-theme="dark"]) body .kasa-stat .amount, html[data-skin="kurumsal"]:not([data-theme="dark"]) body .hist-amount .amt-wrap > span:first-child, html[data-skin="kurumsal"]:not([data-theme="dark"]) body .hist-amount .exp-usd, html[data-skin="kurumsal"]:not([data-theme="dark"]) body .hist-amount .exp-tl,
@@ -4025,7 +4027,7 @@ html[data-skin="kurumsal"][data-theme="dark"]:not(.zz) body #homeRecentList .tl-
 html:not(.zz) body #homeRecentList .tl-item .tl-amt:not(.pay) .tl-amt-sub{color:var(--ink-soft) !important;}
 
 /* ---------- Yeni Sipariş: müşteri seçme penceresi (#pickCustModal) ---------- */
-html:not(.zz) body #pickCustModal .confirm-card{overflow:visible !important; max-height:none; border:2px dashed #7F95B5 !important; outline:none !important; border-radius:14px !important;}
+html:not(.zz) body #pickCustModal .confirm-card{overflow:visible !important; max-height:none;}
 html:not(.zz) body #pickCustModal #pickCust{background:#fef9e9 !important; border-color:#f3e9c6 !important; color:var(--ink);}
 html[data-theme="dark"]:not(.zz) body #pickCustModal #pickCust{background:rgba(230,190,70,.06) !important; border-color:rgba(230,195,90,.4) !important;}
 #pickCustModal .pc-field{position:relative;}
@@ -4043,3 +4045,32 @@ html[data-theme="dark"]:not(.zz) body #pickCustModal #pickCust{background:rgba(2
 #pickCustModal .pc-list li{padding:9px 12px; font-size:.8rem; font-weight:700; letter-spacing:.01em; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer;}
 #pickCustModal .pc-list li:hover, #pickCustModal .pc-list li.on{background:#3b3b3b;}
 @media (max-width:760px){ #pickCustModal .pc-list{left:0; max-width:100%;} }
+#pickCustModal .pc-drop{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; align-self:end; padding:8px; border:1px dashed var(--line); border-radius:10px; font-size:.8rem; color:var(--ink-soft); text-align:center;}
+#pickCustModal .pc-drop[hidden]{display:none !important;}
+#pickCustModal .pc-drop img{max-width:100%; max-height:110px; border-radius:8px; object-fit:contain;}
+
+/* ---------- Kurumsal tema, koyu mod: kesik çizgili kartlar ve Yeni Sipariş pencereleri ----------
+   Açık moddaki #B3C1D5 çizginin koyu zemindeki (#15181D / panel #1E2228) karşılığı: aynı yumuşaklıkta ama seçilebilir */
+html[data-skin="kurumsal"][data-theme="dark"] body .card, html[data-skin="kurumsal"][data-theme="dark"] body #activeCustBox, html[data-skin="kurumsal"][data-theme="dark"] body .home-panel > .card, html[data-skin="kurumsal"][data-theme="dark"] body .confirm-card:not(.dz-over), html[data-theme="dark"] body .login-card{outline:2px dashed #4E5B6E !important; outline-offset:-2px !important; border-radius:14px !important;}
+html[data-skin="kurumsal"][data-theme="dark"] body .confirm-card{border:0 !important; box-shadow:0 1px 3px rgba(0,0,0,.35) !important;}
+/* müşteri kutusundaki × düğmesi */
+html[data-skin="kurumsal"][data-theme="dark"] body #pickCustModal .pc-clear{background:rgba(255,255,255,.12); color:var(--ink-soft);}
+html[data-skin="kurumsal"][data-theme="dark"] body #pickCustModal .pc-clear:hover{background:rgba(255,255,255,.22); color:var(--ink);}
+/* açılır müşteri listesi: koyu kart üzerinde ayrışsın */
+html[data-skin="kurumsal"][data-theme="dark"] body #pickCustModal .pc-list{background:#2B313A; border:1px solid #3E4654; box-shadow:0 10px 26px rgba(0,0,0,.55); scrollbar-color:#566070 #2B313A;}
+html[data-skin="kurumsal"][data-theme="dark"] body #pickCustModal .pc-list::before{border-bottom-color:#3E4654;}
+html[data-skin="kurumsal"][data-theme="dark"] body #pickCustModal .pc-list li{color:#E4E7EB;}
+html[data-skin="kurumsal"][data-theme="dark"] body #pickCustModal .pc-list li:hover, html[data-skin="kurumsal"][data-theme="dark"] body #pickCustModal .pc-list li.on{background:#3A4250;}
+html[data-skin="kurumsal"][data-theme="dark"] body #pickCustModal #pickCust::placeholder{color:#8A93A0;}
+
+/* Ana sayfa "Bu Ay" kartı ve ciro/tahsilat/kasa kutucukları: kesik çizgi yok */
+html[data-skin="kurumsal"]:not([data-theme="dark"]) body #monthCard, html[data-skin="kurumsal"]:not([data-theme="dark"]) body #monthCard .m-stat, html[data-skin="kurumsal"]:not([data-theme="dark"]) body .kasa-stat, html[data-skin="kurumsal"][data-theme="dark"] body #monthCard, html[data-skin="kurumsal"][data-theme="dark"] body #monthCard .m-stat, html[data-skin="kurumsal"][data-theme="dark"] body .kasa-stat{outline:0 !important;}
+
+/* Açılır pencere kartları: koyu zemin üzerinde kesik çizgi, ana sayfadaki kartlarla aynı görünsün diye
+   çizgi kenarlık olarak çizilir ve aralarından kartın rengi değil arka plan görünür (background-clip). */
+html[data-skin="kurumsal"]:not([data-theme="dark"]) body .confirm-card:not(.dz-over){outline:0 !important; border:2px dashed #B3C1D5 !important; background-clip:padding-box !important; border-radius:14px !important;}
+html[data-skin="kurumsal"][data-theme="dark"] body .confirm-card:not(.dz-over){outline:0 !important; border:2px dashed #4E5B6E !important; background-clip:padding-box !important; border-radius:14px !important;}
+
+/* Yeni Sipariş: müşteri seçme ve sipariş kartı — kesik çizgi kartın kenarından 1px içeride */
+html[data-skin="kurumsal"]:not([data-theme="dark"]) body #pickCustModal .confirm-card:not(.dz-over), html[data-skin="kurumsal"]:not([data-theme="dark"]) body #recModal .rec-card:not(.dz-over){border:0 !important; background-clip:border-box !important; outline:2px dashed #9DAEC5 !important; outline-offset:-3px !important; border-radius:14px !important;}
+html[data-skin="kurumsal"][data-theme="dark"] body #pickCustModal .confirm-card:not(.dz-over), html[data-skin="kurumsal"][data-theme="dark"] body #recModal .rec-card:not(.dz-over){border:0 !important; background-clip:border-box !important; outline:2px dashed #5D6B80 !important; outline-offset:-3px !important; border-radius:14px !important;}

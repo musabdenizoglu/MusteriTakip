@@ -29,6 +29,7 @@
                 </ul>
             </div>
         </div>
+        <div class="pc-drop" id="pickDrop" hidden><img alt="" /><span>Bu resim siparişe eklenecek</span></div>
         <input type="hidden" name="customerId" id="pickCustId" />
         <p class="pm-error" id="pickErr" role="alert"></p>
         <div class="confirm-actions">
@@ -43,6 +44,11 @@
                 list = document.getElementById('pickCustList'), caret = f.querySelector('.pc-caret'), clr = f.querySelector('.pc-clear'),
                 go = document.getElementById('pickGo'), err = document.getElementById('pickErr'),
                 items = Array.prototype.slice.call(list.querySelectorAll('li')), active = -1;
+            // "Yeni Sipariş" butonuna resim bırakıldıysa önizlemesini göster (sipariş kartına aktarılacak)
+            if (window.__dropImg) {
+                var pd = document.getElementById('pickDrop');
+                try { pd.querySelector('img').src = URL.createObjectURL(window.__dropImg); pd.hidden = false; } catch (x) { }
+            }
             var up = function (s) { return (s || '').trim().toLocaleUpperCase('tr-TR'); };
             var visible = function () { return items.filter(function (li) { return !li.hidden; }); };
             var match = function () { var v = up(inp.value); return items.filter(function (li) { return up(li.dataset.name) === v; })[0]; };

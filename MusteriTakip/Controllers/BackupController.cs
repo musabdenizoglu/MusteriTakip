@@ -36,7 +36,10 @@ public class BackupController : Controller
         }
         catch (Exception ex)
         {
-            TempData["Error"] = "Yedek yüklenemedi: " + ex.Message;
+            // EF Core'un genel "See the inner exception" mesajı yerine asıl nedeni göster
+            var inner = ex;
+            while (inner.InnerException != null) inner = inner.InnerException;
+            TempData["Error"] = "Yedek yüklenemedi: " + inner.Message;
         }
         return RedirectToAction(nameof(Index));
     }
