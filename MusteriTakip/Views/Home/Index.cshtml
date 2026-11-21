@@ -28,7 +28,7 @@
         <div class="hello-r"><span id="helloTime">Son güncelleme: @DateTime.Now.ToString("HH:mm")</span><a class="btn" id="helloRefresh" asp-action="Index">⟳ Yenile</a></div>
     </div>
     <div class="m-hero" id="mHero">
-        <div class="mh-top"><div><span>Toplam alacak</span><b id="mhRest">@Fmt.Usd(Model.TotalRest)</b><small id="mhSub">@(Model.This.Tahsilat > 0 ? "↑ bu ay " + Fmt.Usd(Model.This.Tahsilat) + " tahsil edildi" : "")</small></div><a class="mh-plus" id="mhPlus" aria-label="Yeni sipariş" asp-controller="Orders" asp-action="New">+</a></div>
+        <div class="mh-top"><div><span>Toplam alacak</span><b id="mhRest">@Fmt.Usd(Model.TotalRest)</b><small id="mhSub">@(Model.This.Tahsilat > 0 ? "↑ bu ay " + Fmt.Usd(Model.This.Tahsilat) + " tahsil edildi" : "")</small></div><a class="mh-plus" id="mhPlus" aria-label="Yeni sipariş" data-modal asp-controller="Orders" asp-action="New">+</a></div>
         <div class="mh-cards"><div><span>Müşteri</span><b id="mhCust">@Model.CustomerCount</b></div><div><span>Bu ay iş</span><b id="mhJobs">@Model.This.Jobs</b></div><div><span>Borçlu</span><b id="mhDebt">@Model.DebtorCount</b></div></div>
     </div>
     <div class="card month-card" id="monthCard">

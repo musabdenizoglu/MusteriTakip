@@ -411,7 +411,7 @@
     function initForms(root) {
         root = root || document;
         // Yazılan metin büyük harfe (Türkçe kurala göre) — HTML: modelUpperJs
-        $('[data-upper]', root).forEach(function (el) {
+        $$('[data-upper]', root).forEach(function (el) {
             el.addEventListener('input', function () { var p = el.selectionStart, u = el.value.toLocaleUpperCase('tr-TR'); if (u !== el.value) { el.value = u; try { el.setSelectionRange(p, p); } catch (e) { } } });
         });
         // "Güncel kur" düğmeleri: data-live-rate="hedefId" (boşsa aynı alandaki number input)
@@ -601,8 +601,14 @@
             else if (m.dataset.back) location.href = m.dataset.back;
             else history.back();
         }
+        // Boş alana tıklama: basış da bırakış da arka planda olmalı. Yoksa kartın dışına taşan bir
+        // listeden seçim (liste basışta kapanınca tıklama arka plana düşer) pencereyi kapatıyordu.
+        var downOnBg = false;
+        m.addEventListener('mousedown', function (e) { downOnBg = e.target === m; });
         m.addEventListener('click', function (e) {
-            if (e.target === m || e.target.closest('.x-close, [data-close]')) { e.preventDefault(); close(); }
+            if (e.target.closest('.x-close, [data-close]')) { e.preventDefault(); close(); return; }
+            if (e.target === m && downOnBg) { e.preventDefault(); close(); }
+            downOnBg = false;
         });
         document.addEventListener('keydown', function esc(e) {
             if (e.key === 'Escape' && document.contains(m) && m.classList.contains('open')) { close(); if (injected) document.removeEventListener('keydown', esc); }

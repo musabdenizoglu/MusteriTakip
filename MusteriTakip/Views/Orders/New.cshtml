@@ -1,37 +1,143 @@
 @{
     ViewData["Title"] = "Yeni Sipariş";
+    ViewData["Nav"] = "order";
     var customers = (List<Customer>)ViewBag.Customers;
+    var back = Url.Action("Index", "Home");
 }
-<div class="card order-card">
-    <h2>Yeni Sipariş</h2>
-    <p class="field-hint">Siparişi hangi müşteriye gireceksiniz? Yazmaya başlayın ya da listeden seçin.</p>
-    <form method="get" asp-action="Create" id="pickCustForm">
-        <label for="pickCust">Müşteri</label>
-        <input type="text" id="pickCust" list="custNames" class="upper" autocomplete="off" placeholder="Seçin / yazın" autofocus />
-        <datalist id="custNames">
-            @foreach (var c in customers)
-            {
-                <option value="@c.Name" data-id="@c.Id">@c.Code</option>
-            }
-        </datalist>
+@* Görünüm referans musteritakip.html → #orderModal. Ana sayfadan data-modal ile pencere olarak açılır;
+   doğrudan açılırsa da pencere açık gelir, kapatınca ana sayfaya döner. *@
+<div class="confirm-modal open" id="pickCustModal" data-standalone data-back="@back">
+    <form class="confirm-card pay-card order-card" id="pickCustForm" method="get" asp-controller="Orders" asp-action="Create"
+          role="dialog" aria-modal="true" aria-labelledby="pickCustTitle" novalidate>
+        <div class="pay-head">
+            <h2 id="pickCustTitle">Yeni Sipariş</h2>
+            <button type="button" class="x-close" aria-label="Kapat">✕</button>
+        </div>
+        <p class="pay-cust">Siparişi hangi müşteriye kaydedelim?</p>
+        <div class="field pc-field">
+            <label for="pickCust">Müşteri</label>
+            <div class="pc-wrap">
+                <input type="text" id="pickCust" class="upper" autocomplete="off" autocapitalize="characters" spellcheck="false"
+                       placeholder="Seçin / yazın" autofocus role="combobox" aria-expanded="false" aria-controls="pickCustList" aria-autocomplete="both" />
+                <button type="button" class="pc-clear" tabindex="-1" aria-label="Müşteri adını sil" title="Sil" hidden>×</button>
+                <button type="button" class="pc-caret" tabindex="-1" aria-label="Müşterileri listele">▾</button>
+                <ul class="pc-list" id="pickCustList" role="listbox" hidden>
+                    @foreach (var c in customers)
+                    {
+                        <li role="option" data-id="@c.Id" data-name="@c.Name">@c.Name</li>
+                    }
+                </ul>
+            </div>
+        </div>
         <input type="hidden" name="customerId" id="pickCustId" />
-        <p class="error" id="pickErr"></p>
+        <p class="pm-error" id="pickErr" role="alert"></p>
         <div class="confirm-actions">
-            <a class="btn secondary" asp-controller="Customers" asp-action="Create">+ Yeni müşteri</a>
-            <button type="submit" class="btn">Devam →</button>
+            <button type="submit" class="btn" id="pickGo">Devam</button>
         </div>
     </form>
-</div>
-@section Scripts {
     <script>
         (function () {
-            var f = document.getElementById('pickCustForm'), inp = document.getElementById('pickCust'), hid = document.getElementById('pickCustId');
+            var m = document.getElementById('pickCustModal'), f = document.getElementById('pickCustForm');
+            if (!f || f.__wired) return; f.__wired = true;
+            var inp = document.getElementById('pickCust'), hid = document.getElementById('pickCustId'),
+                list = document.getElementById('pickCustList'), caret = f.querySelector('.pc-caret'), clr = f.querySelector('.pc-clear'),
+                go = document.getElementById('pickGo'), err = document.getElementById('pickErr'),
+                items = Array.prototype.slice.call(list.querySelectorAll('li')), active = -1;
+            var up = function (s) { return (s || '').trim().toLocaleUpperCase('tr-TR'); };
+            var visible = function () { return items.filter(function (li) { return !li.hidden; }); };
+            var match = function () { var v = up(inp.value); return items.filter(function (li) { return up(li.dataset.name) === v; })[0]; };
+
+            function setActive(i) {
+                var vis = visible(); items.forEach(function (li) { li.classList.remove('on'); li.removeAttribute('aria-selected'); });
+                active = vis.length ? Math.max(0, Math.min(i, vis.length - 1)) : -1;
+                if (active >= 0) { vis[active].classList.add('on'); vis[active].setAttribute('aria-selected', 'true'); vis[active].scrollIntoView({ block: 'nearest' }); }
+            }
+            function filter(all) {
+                if (all) { items.forEach(function (li) { li.hidden = false; }); return; }
+                // Seçili (otomatik tamamlanan) kısım hariç yazılan metne göre süz
+                var typed = up(inp.value.slice(0, inp.selectionStart === inp.selectionEnd ? inp.value.length : inp.selectionStart));
+                items.forEach(function (li) { li.hidden = typed !== '' && up(li.dataset.name).indexOf(typed) === -1; });
+            }
+            // all: kutuya / oka tıklanınca seçili bir isim varsa bütün liste gösterilir (seçili olan işaretli)
+            function open(all) {
+                filter(all === true && !!match());
+                var any = visible().length > 0;
+                list.hidden = !any; inp.setAttribute('aria-expanded', any ? 'true' : 'false');
+                if (any) { var mt = match(); setActive(mt ? visible().indexOf(mt) : -1); }
+            }
+            function close() { list.hidden = true; inp.setAttribute('aria-expanded', 'false'); active = -1; }
+            function pick(li) {
+                inp.value = li.dataset.name; hid.value = li.dataset.id;
+                err.textContent = ''; close(); syncClr();
+                go.focus();   // Devam'a geç — Enter işlemi tamamlar
+            }
+
+            function syncClr() { clr.hidden = inp.value === ''; }
+            inp.addEventListener('click', function () { open(true); });   // kutuya tıklayınca kayıtlı müşteriler listelenir
+            caret.addEventListener('mousedown', function (e) { e.preventDefault(); if (list.hidden) { inp.focus(); open(true); } else close(); });
+            // × : müşteri adını sil
+            clr.addEventListener('mousedown', function (e) { e.preventDefault(); });
+            clr.addEventListener('click', function (e) {
+                e.preventDefault(); e.stopPropagation();
+                inp.value = ''; hid.value = ''; err.textContent = ''; syncClr(); inp.focus(); open();
+            });
+            list.addEventListener('mousedown', function (e) { e.preventDefault(); var li = e.target.closest('li'); if (li) pick(li); });
+            inp.addEventListener('blur', function () { setTimeout(close, 120); });
+
+            inp.addEventListener('input', function (e) {
+                hid.value = ''; err.textContent = ''; syncClr();
+                var typed = up(inp.value);
+                // Yazarken ismi otomatik tamamla (silerken tamamlama yapma)
+                if (typed && e.inputType && e.inputType.indexOf('delete') !== 0) {
+                    var hit = items.filter(function (li) { return up(li.dataset.name).indexOf(typed) === 0; })[0];
+                    if (hit) {
+                        var n = inp.value.length;
+                        inp.value = hit.dataset.name;
+                        try { inp.setSelectionRange(n, inp.value.length); } catch (x) { }
+                    }
+                }
+                open();
+            });
+
+            inp.addEventListener('keydown', function (e) {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (list.hidden) { open(true); return; }
+                    setActive(active + (e.key === 'ArrowDown' ? 1 : -1));
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    var li = (!list.hidden && active >= 0 && visible()[active]) || match();
+                    if (!li) {   // tek eşleşme kaldıysa onu al
+                        var vis = visible(); if (!list.hidden && vis.length === 1) li = vis[0];
+                    }
+                    if (li) pick(li); else showErr();
+                } else if (e.key === 'Escape' && !list.hidden) {
+                    e.preventDefault(); e.stopPropagation(); close();
+                } else if (e.key === 'Tab' && !list.hidden && active >= 0) {
+                    var t = visible()[active]; if (t) { inp.value = t.dataset.name; hid.value = t.dataset.id; close(); }
+                }
+            });
+
+            function showErr() {
+                var v = up(inp.value);
+                err.textContent = v ? 'Bu isimde kayıtlı müşteri yok. Listeden bir müşteri seçin.' : 'Lütfen müşteriyi seçin.';
+                inp.focus();
+            }
+
             f.addEventListener('submit', function (e) {
-                var v = inp.value.trim().toLocaleUpperCase('tr-TR'), id = '';
-                document.querySelectorAll('#custNames option').forEach(function (o) { if (o.value === v) id = o.dataset.id; });
-                if (!id) { e.preventDefault(); document.getElementById('pickErr').textContent = v ? 'Bu isimde kayıtlı müşteri yok. Listeden seçin ya da yeni müşteri ekleyin.' : 'Lütfen müşteriyi seçin.'; return; }
-                hid.value = id;
+                var li = match();
+                if (!li) { e.preventDefault(); showErr(); return; }
+                hid.value = li.dataset.id;
+                // Pencere olarak açıldıysa sipariş formu da sayfadan ayrılmadan pencerede açılsın
+                if (!m.hasAttribute('data-standalone')) {
+                    e.preventDefault();
+                    var a = document.createElement('a');
+                    a.href = f.getAttribute('action') + '?customerId=' + encodeURIComponent(li.dataset.id);
+                    a.setAttribute('data-modal', ''); a.hidden = true;
+                    document.body.appendChild(a); a.click(); a.remove();
+                    m.remove();
+                }
             });
         })();
     </script>
-}
+</div>

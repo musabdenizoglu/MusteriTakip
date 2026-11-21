@@ -3398,7 +3398,7 @@ html[data-skin="kurumsal"]:not([data-theme="dark"]) body .card, html[data-skin="
 
 /* ==== kurumsalDStyleCss ==== */
 /* Konsept D: yuvarlak köşeli, soluk kesik çizgili kart çerçevesi */
-html[data-skin="kurumsal"]:not([data-theme="dark"]) body .card, html[data-skin="kurumsal"]:not([data-theme="dark"]) body #activeCustBox, html[data-skin="kurumsal"]:not([data-theme="dark"]) body .home-panel > .card{outline:2px dashed #B3C1D5 !important; outline-offset:-2px; border-radius:14px !important;}
+html[data-skin="kurumsal"]:not([data-theme="dark"]) body .card, html[data-skin="kurumsal"]:not([data-theme="dark"]) body #activeCustBox, html[data-skin="kurumsal"]:not([data-theme="dark"]) body .home-panel > .card{outline:2px dashed #B3C1D5 !important; outline-offset:0 !important; border-radius:14px !important;}
 html[data-skin="kurumsal"]:not([data-theme="dark"]) body #activeCustBox{padding:16px 18px; background:var(--panel);}
 html[data-skin="kurumsal"]:not([data-theme="dark"]) body #monthCard, html[data-skin="kurumsal"]:not([data-theme="dark"]) body #monthCard .m-stat, html[data-skin="kurumsal"]:not([data-theme="dark"]) body .kasa-stat{outline:0 !important;}
 /* Konsept D fiyat yazısı: Georgia, kalın, sakin koyu ton */
@@ -4023,3 +4023,23 @@ html[data-theme="dark"]:not(.zz) body #homeRecentList .tl-item .tl-amt:not(.pay)
 html[data-skin="kurumsal"]:not([data-theme="dark"]):not(.zz) body #homeRecentList .tl-item .tl-amt:not(.pay){color:#0072bc !important;}
 html[data-skin="kurumsal"][data-theme="dark"]:not(.zz) body #homeRecentList .tl-item .tl-amt:not(.pay){color:#2f8fd6 !important;}
 html:not(.zz) body #homeRecentList .tl-item .tl-amt:not(.pay) .tl-amt-sub{color:var(--ink-soft) !important;}
+
+/* ---------- Yeni Sipariş: müşteri seçme penceresi (#pickCustModal) ---------- */
+html:not(.zz) body #pickCustModal .confirm-card{overflow:visible !important; max-height:none; border:2px dashed #7F95B5 !important; outline:none !important; border-radius:14px !important;}
+html:not(.zz) body #pickCustModal #pickCust{background:#fef9e9 !important; border-color:#f3e9c6 !important; color:var(--ink);}
+html[data-theme="dark"]:not(.zz) body #pickCustModal #pickCust{background:rgba(230,190,70,.06) !important; border-color:rgba(230,195,90,.4) !important;}
+#pickCustModal .pc-field{position:relative;}
+#pickCustModal .pc-wrap{position:relative;}
+#pickCustModal .pc-wrap input{width:100%; padding-right:68px; box-sizing:border-box;}
+#pickCustModal #pickCust, #pickCustModal #pickCust::placeholder{text-transform:uppercase;}
+#pickCustModal .pc-caret{position:absolute; right:4px; top:50%; transform:translateY(-50%); width:32px; height:32px; border:0; background:transparent; color:var(--ink-soft); font-size:1.55rem; line-height:1; cursor:pointer; padding:0; box-shadow:none;}
+#pickCustModal .pc-wrap:focus-within .pc-caret{color:var(--ink);}
+#pickCustModal .pc-clear{position:absolute; right:38px; top:50%; transform:translateY(-50%); width:22px; height:22px; border:0; border-radius:50%; background:rgba(0,0,0,.08); color:var(--ink-soft); font-size:1rem; line-height:22px; text-align:center; padding:0; cursor:pointer; box-shadow:none;}
+#pickCustModal .pc-clear:hover{background:rgba(0,0,0,.16); color:var(--ink);}
+#pickCustModal .pc-clear[hidden]{display:none !important;}
+#pickCustModal .pc-list{scrollbar-width:thin; scrollbar-color:#5a5a5a #232323; position:absolute; left:100px; top:calc(100% + 10px); z-index:20; min-width:190px; max-width:calc(100% - 100px); max-height:260px; overflow:auto; margin:0; padding:6px 0; list-style:none; background:#232323; color:#fff; border-radius:6px; box-shadow:0 10px 26px rgba(0,0,0,.35);}
+#pickCustModal .pc-list::before{content:""; position:absolute; top:-7px; left:14px; border:7px solid transparent; border-top:0; border-bottom-color:#232323;}
+#pickCustModal .pc-list[hidden], #pickCustModal .pc-list li[hidden]{display:none !important;}
+#pickCustModal .pc-list li{padding:9px 12px; font-size:.8rem; font-weight:700; letter-spacing:.01em; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer;}
+#pickCustModal .pc-list li:hover, #pickCustModal .pc-list li.on{background:#3b3b3b;}
+@media (max-width:760px){ #pickCustModal .pc-list{left:0; max-width:100%;} }
