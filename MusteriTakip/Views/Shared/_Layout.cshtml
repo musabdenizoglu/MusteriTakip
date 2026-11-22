@@ -60,7 +60,7 @@
             <div class="live-ticker" id="liveTicker" title="Canlı piyasa fiyatları (her dakika yenilenir)">
                 <div class="lt-item"><span class="lt-name">Dolar</span><span class="lt-v"><small>Alış</small><b id="ltUsdBuy">—</b></span><span class="lt-v"><small>Satış</small><b id="ltUsdSell">—</b></span></div>
                 <div class="lt-item"><span class="lt-name">Euro</span><span class="lt-v"><small>Alış</small><b id="ltEurBuy">—</b></span><span class="lt-v"><small>Satış</small><b id="ltEurSell">—</b></span></div>
-                <div class="lt-item"><span class="lt-name">Gram Altın</span><span class="lt-v"><small>Alış</small><b id="ltGoldBuy">—</b></span><span class="lt-v"><small>Satış</small><b id="ltGoldSell">—</b></span></div>
+                <div class="lt-item"><span class="lt-name">Altın</span><span class="lt-v"><small>Alış</small><b id="ltGoldBuy">—</b></span><span class="lt-v"><small>Satış</small><b id="ltGoldSell">—</b></span></div>
             </div>
             <div class="topbar-actions">
                 <button class="logout mode-btn" id="modeBtn" type="button" title="Koyu / açık görünüm">🌙</button>
@@ -122,6 +122,25 @@
         <div class="fm-sp"></div>
         <a class="fm-item small" asp-controller="Backup" asp-action="Index"><svg viewBox="0 0 24 24"><path d="M12 16V5M7 9l5-5 5 5M5 20h14"></path></svg><span class="fm-lbl">Yedeği Yükle</span></a>
     </nav>
+    <script id="fmHoverKeep">
+        // Menüden gelindiyse farenin altındaki öğeyi ilk kareden "üzerine gelinmiş" çiz (geçişsiz) — yazı git-gel yapmasın.
+        // Fare o öğeden ayrılınca normal :hover davranışına bırakılır. (bkz. site.js fmGo)
+        (function () {
+            function apply() {
+                var s = null;
+                try { s = JSON.parse(sessionStorage.getItem("mt_fmhov") || "null"); sessionStorage.removeItem("mt_fmhov"); } catch (e) { }
+                if (!s || Date.now() - s.t > 4000) return;
+                var side = document.getElementById("fmSide");
+                var el = side && side.querySelectorAll(".fm-item, .fm-ghead, .fm-kid")[s.i]; if (!el) return;
+                side.classList.add("fm-notr"); el.classList.add("fm-hov");
+                void side.offsetWidth;
+                requestAnimationFrame(function () { requestAnimationFrame(function () { side.classList.remove("fm-notr"); }); });
+                function chk(ev) { if (!el.contains(ev.target)) { el.classList.remove("fm-hov"); document.removeEventListener("pointermove", chk, true); } }
+                document.addEventListener("pointermove", chk, true);
+            }
+            if (document.prerendering) document.addEventListener("prerenderingchange", apply, { once: true }); else apply();
+        })();
+    </script>
 
     <nav class="m-tabbar" id="mTabbar" aria-label="Alt menü">
         <a class="@(nav == "home" ? "on" : "")" data-mt="home" asp-controller="Home" asp-action="Index"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 11l9-7 9 7" /><path d="M5 10v10h14V10" /></svg><span>Ana Sayfa</span></a>
@@ -131,7 +150,16 @@
         <a class="@(nav == "ayar" ? "on" : "")" data-mt="menu" asp-controller="Settings" asp-action="Index"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg><span>Menü</span></a>
     </nav>
 
-    <div class="img-modal" id="imgModal"><button type="button" class="modal-close" aria-label="Kapat">✕</button><img id="imgModalImg" alt="" /><div class="modal-caption" id="imgModalCap"></div></div>
+    <div class="img-modal" id="imgModal">
+        <button type="button" class="modal-close" aria-label="Kapat">✕</button>
+        <div class="modal-inner">
+            <div class="img-stage" id="imgStage"><img id="imgModalImg" alt="Sipariş resmi önizleme" draggable="false" /></div>
+            <div class="modal-caption" id="imgModalCap"></div>
+            <div class="zoom-hint">Tıkla veya fare tekerleği ile yakınlaştır · sürükleyerek gezin · tekrar tıkla sıfırla</div>
+        </div>
+    </div>
+    <div class="note-pop follow" id="noteFollow" hidden aria-hidden="true"></div>
+    <div class="note-pop" id="notePop" hidden role="tooltip"><button type="button" class="np-x" id="notePopX" aria-label="Kapat">✕</button><div id="notePopText"></div></div>
 
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/js/ui-polish.js" asp-append-version="true"></script>

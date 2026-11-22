@@ -4074,3 +4074,13 @@ html[data-skin="kurumsal"][data-theme="dark"] body .confirm-card:not(.dz-over){o
 /* Yeni Sipariş: müşteri seçme ve sipariş kartı — kesik çizgi kartın kenarından 1px içeride */
 html[data-skin="kurumsal"]:not([data-theme="dark"]) body #pickCustModal .confirm-card:not(.dz-over), html[data-skin="kurumsal"]:not([data-theme="dark"]) body #recModal .rec-card:not(.dz-over){border:0 !important; background-clip:border-box !important; outline:2px dashed #9DAEC5 !important; outline-offset:-3px !important; border-radius:14px !important;}
 html[data-skin="kurumsal"][data-theme="dark"] body #pickCustModal .confirm-card:not(.dz-over), html[data-skin="kurumsal"][data-theme="dark"] body #recModal .rec-card:not(.dz-over){border:0 !important; background-clip:border-box !important; outline:2px dashed #5D6B80 !important; outline-offset:-3px !important; border-radius:14px !important;}
+
+/* ==== homeRecentCollapse ==== Son eklenen kayıtlar kartı küçültülünce: kart esnemeyi bırakır, alt kenarı başlığın altındaki çizgide biter */
+html body .home-recent.collapsed,
+html body .home-content.recent-mode #panelRecent.active > .home-recent.collapsed{flex:0 0 auto !important; height:auto !important; min-height:0 !important; padding-bottom:0 !important;}
+html body .home-recent.collapsed > h2{margin-bottom:0 !important;}
+
+/* Ana sayfa son kayıtlar: tür etiketi + not (i) düğmesi aynı satırda, etiket kırılmasın */
+html body #homeRecentList .home-rec-row > .model .hk{flex:0 0 auto !important; min-width:74px; gap:6px;}
+html body #homeRecentList .home-rec-row > .model .hk .kind-tag{white-space:nowrap; flex-shrink:0;}
+html body #homeRecentList .home-rec-row > .model .hk .note-info{margin-left:0; flex-shrink:0;}

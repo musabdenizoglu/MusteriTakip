@@ -2,6 +2,14 @@
    site.css referans HTML'in birebir kopyasıdır; HTML'de <button> olan bazı öğeler burada
    sayfa bağlantısı (<a>) ya da <form> olduğu için aynı görünsünler diye gereken düzeltmeler burada. */
 
+/* Sol menü: sayfa değişince farenin altındaki öğe ilk kareden :hover görünümünde çizilir (site.css :hover kurallarının aynısı).
+   .fm-notr ilk iki karede geçişleri kapatır — yazı sağa-sola git-gel yapmasın. (bkz. _Layout.cshtml "fmHoverKeep") */
+#fmSide.fm-notr, #fmSide.fm-notr * { transition: none !important; }
+#fmSide .fm-item.fm-hov, #fmSide .fm-ghead.fm-hov { padding-left: 12px; color: var(--fm-blue); }
+#fmSide .fm-kid.fm-hov { padding-left: 18px; color: var(--fm-blue); }
+#fmSide .fm-grp.open .fm-kid.fm-hov { background: var(--panel); color: var(--fm-blue); opacity: 1; padding-left: 18px; }
+#fmSide .fm-grp.open .fm-ghead.fm-hov { color: #fff; padding-left: 8px; }
+
 /* Bağlantı olan menü öğeleri düğme gibi görünsün */
 :where(#fmSide) a, :where(.m-tabbar) a, a.bk-chip, a.fm-logo { text-decoration: none; }
 :where(#fmSide) a { color: inherit; }

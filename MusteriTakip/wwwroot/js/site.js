@@ -43,22 +43,91 @@
             store.set('mt_fmcol', c ? '1' : '0');
         });
     }
-    // Menü grupları (Müşteriler, Kasa): başlığa tıklayınca aç/kapat; o bölümde değilsek ilk sayfasına git
-    $$('#fmSide .fm-ghead').forEach(function (h) {
-        h.addEventListener('click', function () {
-            var g = h.parentNode;
-            if (html.classList.contains('fm-col') || !g.classList.contains('act')) { location.href = h.dataset.href; return; }
-            g.classList.toggle('open');
+    // ---- Sol menü geçişleri (HTML: fmLayoutJs) ----
+    // HTML tek sayfadır: menüye tıklayınca sadece sınıflar değişir, CSS geçişleri ve nabız boşta olan sayfada
+    // akıcı oynar. Burada tıklama yeni sayfa açar; animasyon yeni sayfa yüklenirken oynarsa tarayıcı meşgul
+    // olduğundan kare atlar (takılır). Bu yüzden: menünün yeni durumu HTML'deki gibi HEMEN bu sayfada uygulanır,
+    // hedef sayfa aynı anda arka planda hazırlanır (destekleyen tarayıcılarda önceden çizilir) ve animasyon
+    // bitince açılır — yeni sayfa menüyü zaten son hâliyle gösterir.
+    var FM_PULSE_MS = 420, FM_KID_MS = 220;
+    var fmSideEl = $('#fmSide'), fmLeaving = false, fmReady = {};
+    var fmMarks = $$('#fmSide .fm-item[data-k], #fmSide .fm-kid'), fmGrps = $$('#fmSide .fm-grp');
+    var fmOrig = fmMarks.concat(fmGrps).map(function (el) { return [el, el.className]; });
+    function fmPrepare(url) {
+        if (!url || fmReady[url]) return; fmReady[url] = 1;
+        try {
+            if (window.HTMLScriptElement && HTMLScriptElement.supports && HTMLScriptElement.supports('speculationrules')) {
+                var s = document.createElement('script'); s.type = 'speculationrules';
+                s.textContent = JSON.stringify({ prerender: [{ source: 'list', urls: [url] }] });
+                document.head.appendChild(s);
+            } else {
+                var l = document.createElement('link'); l.rel = 'prefetch'; l.href = url; document.head.appendChild(l);
+            }
+        } catch (e) { }
+    }
+    function fmSetState(onKey, openGrp) {
+        fmMarks.forEach(function (el) { el.classList.toggle('on', el.dataset.k === onKey); });
+        fmGrps.forEach(function (g) { g.classList.toggle('open', g === openGrp); });
+    }
+    function fmGo(url, onKey, openGrp, wait) {
+        if (fmLeaving) return; fmLeaving = true;
+        fmPrepare(url);
+        // Yeni sayfa ilk çizildiğinde tarayıcı farenin nerede olduğunu henüz bilmez; üzerine gelinmiş (sağa kaymış)
+        // buton önce eski yerine döner, sonra tekrar kayar (yazı git-gel yapar). Bu yüzden farenin altındaki öğe
+        // saklanır, yeni sayfa onu ilk kareden "üzerine gelinmiş" çizer (bkz. _Layout.cshtml "fmHoverKeep").
+        try {
+            var hovEls = $$('#fmSide .fm-item, #fmSide .fm-ghead, #fmSide .fm-kid');
+            var hi = hovEls.findIndex(function (el) { return el.matches(':hover'); });
+            if (hi >= 0) sessionStorage.setItem('mt_fmhov', JSON.stringify({ i: hi, t: Date.now() }));
+        } catch (e) { }
+        fmSetState(onKey, openGrp);
+        setTimeout(function () { location.href = url; }, wait);
+    }
+    function fmPulse(t) {
+        var el = t.classList.contains('fm-ghead') ? t.parentNode : t;
+        el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse');
+        setTimeout(function () { el.classList.remove('pulse'); }, 520);
+    }
+    function fmPlainClick(e) { return e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey; }
+    if (fmSideEl) {
+        // Hedef sayfayı fareyle üzerine gelince / basınca hazırlamaya başla
+        var fmHrefOf = function (t) { return t.dataset.href || (t.tagName === 'A' && !t.hasAttribute('data-modal') ? t.href : ''); };
+        ['pointerdown', 'mouseover'].forEach(function (ev) {
+            fmSideEl.addEventListener(ev, function (e) {
+                var t = e.target.closest('.fm-item, .fm-ghead, .fm-kid, .fm-logo'); if (!t) return;
+                var u = fmHrefOf(t);
+                if (ev === 'mouseover') { clearTimeout(t._fmHov); t._fmHov = setTimeout(function () { if (t.matches(':hover')) fmPrepare(u); }, 120); }
+                else fmPrepare(u);
+            });
         });
-    });
-    // Sol menüde tıklama "nabız" efekti
-    $$('#fmSide .fm-item, #fmSide .fm-ghead').forEach(function (t) {
-        t.addEventListener('click', function () {
-            var el = t.classList.contains('fm-ghead') ? t.parentNode : t;
-            el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse');
-            setTimeout(function () { el.classList.remove('pulse'); }, 520);
+        fmSideEl.addEventListener('click', function (e) {
+            var t = e.target.closest('.fm-item, .fm-ghead, .fm-kid, .fm-logo'); if (!t) return;
+            if (fmLeaving) { e.preventDefault(); return; }
+            if (t.classList.contains('fm-ghead')) {
+                // Grup başlığı: o bölümdeysek aç/kapat; değilsek grubu aç ve ilk sayfasına git
+                var g = t.parentNode, col = html.classList.contains('fm-col');
+                fmPulse(t);
+                if (col || !g.classList.contains('act')) {
+                    var first = g.querySelector('.fm-kid');
+                    fmGo(t.dataset.href, first ? first.dataset.k : null, col ? null : g, FM_PULSE_MS);
+                } else g.classList.toggle('open');
+                return;
+            }
+            if (t.tagName !== 'A' || !fmPlainClick(e)) { if (t.classList.contains('fm-item')) fmPulse(t); return; }
+            if (t.hasAttribute('data-modal')) { fmPulse(t); return; } // Yeni Sipariş: pencere açılır, sayfa değişmez
+            e.preventDefault();
+            if (t.classList.contains('fm-kid')) { fmGo(t.href, t.dataset.k, t.closest('.fm-grp'), FM_KID_MS); return; }
+            if (t.classList.contains('fm-logo')) { fmGo(t.href, 'home', null, FM_KID_MS); return; }
+            fmPulse(t);
+            fmGo(t.href, t.dataset.k || null, null, FM_PULSE_MS);
         });
-    });
+        // Geri tuşuyla bu sayfaya dönülürse (tarayıcı önbelleği) menüyü sayfanın asıl durumuna döndür
+        window.addEventListener('pageshow', function (e) {
+            if (!e.persisted) return;
+            fmLeaving = false;
+            fmOrig.forEach(function (x) { x[0].className = x[1]; });
+        });
+    }
     // Kullanıcı menüsü (sağ üst)
     var fmUser = $('#fmUser');
     if (fmUser) {
@@ -77,8 +146,37 @@
         $('#bkChipT').textContent = t; bk.className = 'bk-chip ' + cls;
         bk.title = last ? 'Son yedek: ' + new Date(last).toLocaleString('tr-TR') + ' — tıklayınca şimdi yedek alır' : 'Henüz yedek alınmadı — tıklayınca şimdi yedek alır';
     }
-    $$('a[href*="/Backup/Export"]').forEach(function (a) { a.addEventListener('click', function () { store.set('mt_last_backup', String(Date.now())); setTimeout(renderBkChip, 50); }); });
+    $$('a[href*="/Backup/Export"]').forEach(function (a) { if (a !== bk) a.addEventListener('click', function () { store.set('mt_last_backup', String(Date.now())); setTimeout(renderBkChip, 50); }); });
     renderBkChip();
+    // Yedek onay penceresi (HTML: bk-pop) — çipe tıklayınca çipin altında açılır; açılış/kapanış site.css'teki
+    // .bk-pop → .bk-pop.open geçişiyle olur (yukarıdan 14px kayarak belirme, 0,18 sn).
+    if (bk) (function () {
+        var pop = null;
+        function close() { if (!pop) return; var x = pop; pop = null; x.classList.remove('open'); setTimeout(function () { x.remove(); }, 200); }
+        function open() {
+            if (pop) { close(); return; }
+            var last = Number(store.get('mt_last_backup')) || 0;
+            pop = document.createElement('div'); pop.className = 'bk-pop'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'Yedek onayı');
+            pop.innerHTML = '<div class="bk-pop-t">Şimdi yedek alınsın mı?</div><div class="bk-pop-s">' + (last ? 'Son yedek: ' + new Date(last).toLocaleString('tr-TR') : 'Henüz yedek alınmadı.') + '</div><div class="bk-pop-a"><button type="button" class="btn secondary" id="bkPopNo">Vazgeç</button><button type="button" class="btn" id="bkPopYes">Yedek al</button></div>';
+            document.body.appendChild(pop);
+            var r = bk.getBoundingClientRect(), w = Math.min(290, window.innerWidth - 24);
+            pop.style.width = w + 'px';
+            pop.style.top = (r.bottom + 8) + 'px';
+            pop.style.left = Math.max(12, Math.min(r.right - w, window.innerWidth - w - 12)) + 'px';
+            requestAnimationFrame(function () { if (pop) pop.classList.add('open'); });
+            $('#bkPopNo').addEventListener('click', close);
+            $('#bkPopYes').addEventListener('click', function () {
+                close();
+                store.set('mt_last_backup', String(Date.now())); setTimeout(renderBkChip, 50);
+                location.href = bk.href; // dosya iner, sayfa değişmez
+            });
+            $('#bkPopYes').focus();
+        }
+        bk.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); open(); });
+        document.addEventListener('mousedown', function (e) { if (pop && !e.target.closest('.bk-pop') && !e.target.closest('#bkChip')) close(); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && pop) { e.stopPropagation(); close(); } }, true);
+        window.addEventListener('resize', close);
+    })();
     // Sayfaya giden düğmeler (✎ düzenle vb.): <button data-href="..."> — HTML'deki düğme görünümü korunur
     document.addEventListener('click', function (e) {
         var b = e.target.closest('button[data-href]');
@@ -222,17 +320,131 @@
     }, true);
 
     // ---------------- Resim büyütme ----------------
+    // Ortada açılır; altında sipariş notu. Tekerlek = yakınlaştır/uzaklaştır, sol tuşla sürükle = gezin, çift tık = sıfırla
     var modal = $('#imgModal');
     if (modal) {
+        var mImg = $('#imgModalImg'), stage = $('#imgStage'), cap = $('#imgModalCap');
+        var imgZoom = 1, imgBase = 1, drag = null;
+        function fitBase() {
+            var nw = mImg.naturalWidth || 1, nh = mImg.naturalHeight || 1;
+            return Math.min(window.innerWidth * 0.94 / nw, window.innerHeight * 0.78 / nh, 2.5);
+        }
+        function applyZoom(ax, ay) {
+            var nw = mImg.naturalWidth || 1, nh = mImg.naturalHeight || 1;
+            var rx = 0.5, ry = 0.5, r = stage.getBoundingClientRect();
+            if (ax !== undefined && mImg.offsetWidth) {   // imlecin altındaki nokta yerinde kalsın
+                rx = (stage.scrollLeft + ax - r.left) / mImg.offsetWidth;
+                ry = (stage.scrollTop + ay - r.top) / mImg.offsetHeight;
+            }
+            mImg.style.width = Math.round(nw * imgBase * imgZoom) + 'px';
+            mImg.style.height = Math.round(nh * imgBase * imgZoom) + 'px';
+            stage.classList.toggle('zoomed', imgZoom > 1.001);
+            r = stage.getBoundingClientRect();
+            var px = ax !== undefined ? ax - r.left : stage.clientWidth / 2;
+            var py = ay !== undefined ? ay - r.top : stage.clientHeight / 2;
+            stage.scrollLeft = rx * mImg.offsetWidth - px;
+            stage.scrollTop = ry * mImg.offsetHeight - py;
+        }
+        function openImg(src, note) {
+            cap.innerHTML = '';
+            if (note) { var d = document.createElement('div'); d.className = 'mc-note'; d.textContent = note; cap.appendChild(d); }
+            imgZoom = 1; mImg.style.width = ''; mImg.style.height = '';
+            mImg.onload = function () { imgBase = fitBase(); imgZoom = 1; applyZoom(); };
+            mImg.src = src;
+            modal.classList.add('open');
+            if (mImg.complete && mImg.naturalWidth) { imgBase = fitBase(); applyZoom(); }
+        }
+        function closeImg() {
+            if (!modal.classList.contains('open')) return;
+            modal.classList.remove('open'); mImg.onload = null; mImg.removeAttribute('src'); imgZoom = 1; drag = null;
+        }
         document.addEventListener('click', function (e) {
             var img = e.target.closest('[data-zoom]');
             if (!img) return;
-            $('#imgModalImg').src = img.src;
-            $('#imgModalCap').textContent = img.dataset.caption || '';
-            modal.classList.add('open');
+            var th = img.closest('.thumb');
+            openImg(img.src, (th && th.dataset.note || '').trim());
         });
-        modal.addEventListener('click', function (e) { if (e.target === modal || e.target.classList.contains('modal-close')) modal.classList.remove('open'); });
-        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') modal.classList.remove('open'); });
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal || e.target.classList.contains('modal-inner') || e.target.closest('.modal-close')) closeImg();
+        });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeImg(); });
+        stage.addEventListener('wheel', function (e) {
+            e.preventDefault();
+            var next = Math.min(Math.max(imgZoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15), 1), 6);
+            if (next === imgZoom) return;
+            imgZoom = next; applyZoom(e.clientX, e.clientY);
+        }, { passive: false });
+        // Tek tık: büyüt / sıfırla (sürükleme sonrası bırakılan tık sayılmaz)
+        var dragMoved = false;
+        stage.addEventListener('click', function (e) {
+            if (dragMoved) { dragMoved = false; return; }
+            imgZoom = imgZoom > 1.001 ? 1 : 2.5; applyZoom(e.clientX, e.clientY);
+        });
+        stage.addEventListener('mousedown', function (e) {
+            dragMoved = false;
+            if (e.button !== 0 || imgZoom <= 1.001) return;
+            e.preventDefault();
+            drag = { x: e.clientX, y: e.clientY, sl: stage.scrollLeft, st: stage.scrollTop };
+            stage.classList.add('dragging');
+        });
+        window.addEventListener('mousemove', function (e) {
+            if (!drag) return;
+            if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 4) dragMoved = true;
+            stage.scrollLeft = drag.sl - (e.clientX - drag.x);
+            stage.scrollTop = drag.st - (e.clientY - drag.y);
+        });
+        window.addEventListener('mouseup', function () { if (drag) { drag = null; stage.classList.remove('dragging'); } });
+        window.addEventListener('resize', function () { if (modal.classList.contains('open')) { imgBase = fitBase(); applyZoom(); } });
+    }
+
+    // ---------------- Sipariş notu balonu ----------------
+    // (i) işaretine tıklanınca hemen altında açılır; ✕, Esc, kaydırma ya da boş yere tıklayınca kapanır
+    var notePop = $('#notePop');
+    if (notePop) {
+        var npBtn = null;
+        function hideNote() { notePop.hidden = true; if (npBtn) npBtn.classList.remove('on'); npBtn = null; }
+        function showNote(btn) {
+            if (npBtn && npBtn !== btn) npBtn.classList.remove('on');
+            npBtn = btn; btn.classList.add('on');
+            $('#notePopText').textContent = btn.dataset.note || '';
+            notePop.classList.add('pinned');
+            notePop.hidden = false; notePop.classList.remove('up');
+            var r = btn.getBoundingClientRect(), pw = notePop.offsetWidth, ph = notePop.offsetHeight;
+            var left = Math.min(Math.max(8, r.left + r.width / 2 - 20), window.innerWidth - pw - 8);
+            var top = r.bottom + 10;
+            if (top + ph > window.innerHeight - 8) { top = r.top - ph - 10; notePop.classList.add('up'); }
+            notePop.style.left = left + 'px'; notePop.style.top = top + 'px';
+            notePop.style.setProperty('--ax', Math.max(10, Math.min(pw - 22, r.left + r.width / 2 - left - 6)) + 'px');
+        }
+        document.addEventListener('click', function (e) {
+            var b = e.target.closest('.note-info');
+            if (b) { e.preventDefault(); e.stopPropagation(); if (npBtn === b && !notePop.hidden) hideNote(); else showNote(b); return; }
+            if (e.target.closest('#notePop') && !e.target.closest('#notePopX')) return;
+            if (!notePop.hidden) hideNote();
+        }, true);
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !notePop.hidden) hideNote(); });
+        document.addEventListener('scroll', function () { if (!notePop.hidden) hideNote(); }, true);
+        window.addEventListener('resize', function () { if (!notePop.hidden) hideNote(); });
+    }
+
+    // Model resminin üzerinde: not, fare imlecinin altında balonda belirir ve imleçle hareket eder; resimden çıkınca kaybolur
+    var noteFollow = $('#noteFollow');
+    if (noteFollow) {
+        var NF_SEL = '#recordsList .thumb[data-note], #homeRecentList .thumb[data-note]';
+        function nfThumb(el) { var t = el && el.closest && el.closest(NF_SEL); return t && t.dataset.note.trim() ? t : null; }
+        document.addEventListener('mousemove', function (e) {
+            var t = nfThumb(e.target);
+            if (!t || modal && modal.classList.contains('open')) { if (!noteFollow.hidden) noteFollow.hidden = true; return; }
+            if (noteFollow.hidden || noteFollow.dataset.for !== t.dataset.note) { noteFollow.textContent = t.dataset.note; noteFollow.dataset.for = t.dataset.note; noteFollow.hidden = false; }
+            var w = noteFollow.offsetWidth, h = noteFollow.offsetHeight;
+            var x = e.clientX + 14, y = e.clientY + 18;
+            if (x + w > window.innerWidth - 8) x = e.clientX - w - 10;
+            if (y + h > window.innerHeight - 8) y = e.clientY - h - 12;
+            noteFollow.style.left = x + 'px'; noteFollow.style.top = y + 'px';
+        });
+        document.addEventListener('mouseout', function (e) { if (nfThumb(e.target) && !nfThumb(e.relatedTarget)) noteFollow.hidden = true; });
+        document.addEventListener('scroll', function () { noteFollow.hidden = true; }, true);
+        document.addEventListener('click', function (e) { if (nfThumb(e.target)) noteFollow.hidden = true; }, true);
     }
 
     // ---------------- Canlı Dolar / Gram Altın ----------------

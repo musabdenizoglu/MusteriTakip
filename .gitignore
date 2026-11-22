@@ -6,3 +6,5 @@ obj/
 *.db-wal
 MusteriTakip/wwwroot/uploads/*
 !MusteriTakip/wwwroot/uploads/.gitkeep
+
+.claude/settings.local.json

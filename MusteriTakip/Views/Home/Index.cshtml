@@ -69,7 +69,8 @@
                             else
                             {<span class="mcode-none">—</span>}</div>
                         <div class="model"><span class="cin" data-m="1">@it.Model</span><span class="hk">@if (it.Kind != "")
-                            {<span class="kind-tag@(it.KindCls)">@it.Kind</span>}</span></div>
+                            {<span class="kind-tag@(it.KindCls)">@it.Kind</span>}@if (!string.IsNullOrWhiteSpace(it.Note))
+                            {<button type="button" class="note-info" data-note="@it.Note" aria-label="Notu göster" title="Not">i</button>}</span></div>
                     </div>
                 }
                 else

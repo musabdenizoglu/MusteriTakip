@@ -157,7 +157,7 @@
                                                     <span class="mk">@if (kind != "")
                                                         {<span class="kind-tag@(r.Kind == IslemTuru.Kalip ? " k-kalip" : "")">@kind</span>}</span>
                                                     <span class="mi">@if (!string.IsNullOrWhiteSpace(r.Note))
-                                                        {<button type="button" class="note-info" data-note="@r.Note" aria-label="Notu göster" title="@r.Note">i</button>}</span>
+                                                        {<button type="button" class="note-info" data-note="@r.Note" aria-label="Notu göster" title="Not">i</button>}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -306,8 +306,6 @@
                 all.addEventListener('change', function () { list.querySelectorAll('.hsel-box').forEach(function (b) { if (!b.closest('[hidden]')) b.checked = all.checked; }); upd(); });
                 list.addEventListener('change', function (e) { if (e.target.classList.contains('hsel-box')) upd(); });
             });
-            // Not "i" düğmesi
-            document.addEventListener('click', function (e) { var b = e.target.closest('.note-info'); if (b) { e.stopPropagation(); alert(b.dataset.note); } });
             // Ana sayfadan bir siparişe gelindiyse onu göster
             if (location.hash && location.hash.indexOf('#rec-') === 0) {
                 var el = document.querySelector(location.hash); if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('flash-row'); }
