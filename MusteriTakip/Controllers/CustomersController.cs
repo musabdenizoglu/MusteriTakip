@@ -50,6 +50,19 @@ public class CustomersController : Controller
         return View(new CustomerListVm { Items = items.ToList(), Search = q, Sort = sort, TrashCount = trash });
     }
 
+    // GET /Customers/SearchData — üst çubuktaki genel arama (gsearch) için müşteri + sipariş listesi
+    [HttpGet]
+    public async Task<IActionResult> SearchData()
+    {
+        var customers = await _db.Customers.AsNoTracking()
+            .Select(c => new { id = c.Id, name = c.Name, code = c.Code, phone = c.Phone })
+            .ToListAsync();
+        var records = await _db.OrderRecords.AsNoTracking()
+            .Select(r => new { id = r.Id, cid = r.CustomerId, model = r.Model, code = r.Code, note = r.Note, date = r.Date, price = r.Price, image = r.ImagePath })
+            .ToListAsync();
+        return Json(new { customers, records });
+    }
+
     // GET /Customers/Create
     public IActionResult Create() => View("Form", new CustomerFormVm());
 

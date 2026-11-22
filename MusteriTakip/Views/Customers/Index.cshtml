@@ -67,7 +67,7 @@
             // Yazarken anında süz (HTML gibi); Enter sunucuda arar
             inp.addEventListener('input', function () {
                 var t = inp.value.trim().toLocaleLowerCase('tr-TR');
-                ul.querySelectorAll('li').forEach(function (li) { li.hidden = t !== '' && li.dataset.name.indexOf(t) < 0; });
+                ul.querySelectorAll('li').forEach(function (li) { mtHide(li, t !== '' && li.dataset.name.indexOf(t) < 0); });
             });
             // Kalem düğmeleri aynı hizada: en uzun müşteri adına göre (HTML: --clname)
             try {

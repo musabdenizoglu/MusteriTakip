@@ -141,7 +141,9 @@
             var inp = document.getElementById('homeRecentSearch'), empty = document.getElementById('homeRecentEmptyNote');
             var classicHtml = list.innerHTML, timelineHtml = tpl.innerHTML;
             function mode() { try { return localStorage.getItem('mt_home_recent') === 'timeline' ? 'timeline' : 'classic'; } catch (e) { return 'classic'; } }
-            function terms() { return (inp.value || '').toLocaleLowerCase('tr-TR').split(',').map(function (s) { return s.trim(); }).filter(Boolean); }
+            // Türkçe karakterlerden bağımsız eşleşme (HTML: norm) — "sinan" yazınca "SİNAN", "sms" yazınca "ŞMS" bulunur
+            function norm(t) { return String(t || '').toLocaleLowerCase('tr-TR').replace(/ı/g, 'i').normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+            function terms() { return norm(inp.value).split(',').map(function (s) { return s.trim(); }).filter(Boolean); }
             function render() {
                 var m = mode(), q = terms();
                 title.textContent = m === 'classic' ? 'Son Eklenen Kayıtlar' : 'Zaman Çizgisi';
@@ -149,19 +151,24 @@
                 list.innerHTML = m === 'classic' ? classicHtml : timelineHtml;
                 var rows = list.querySelectorAll('[data-s]'), shown = 0;
                 rows.forEach(function (r) {
-                    var ok = q.length ? q.every(function (t) { return r.dataset.s.indexOf(t) >= 0; }) : (m === 'timeline' || shown < 40);
-                    r.hidden = !ok; if (ok) shown++;
+                    var ok = q.length ? q.every(function (t) { return norm(r.dataset.s).indexOf(t) >= 0; }) : (m === 'timeline' || shown < 40);
+                    mtHide(r, !ok); if (ok) shown++;
                 });
                 if (m === 'timeline') {
                     // boş kalan ay başlıklarını gizle
                     list.querySelectorAll('.tl-month').forEach(function (h) {
                         var n = h.nextElementSibling, any = false;
                         while (n && !n.classList.contains('tl-month')) { if (!n.hidden) any = true; n = n.nextElementSibling; }
-                        h.hidden = !any;
+                        mtHide(h, !any);
                     });
                     if (!shown) list.innerHTML = '<div class="tl-empty">Hareket yok</div>';
                 }
-                empty.style.display = (m === 'classic' && !rows.length) ? 'block' : 'none';
+                if (m === 'classic' && rows.length && !shown) {
+                    empty.textContent = 'Aramanıza uyan kayıt yok. Aramayı değiştirin veya temizleyin.'; empty.style.display = 'block';
+                } else {
+                    empty.textContent = 'Henüz sipariş yok. “Yeni Sipariş” ile ilk kaydı ekleyin; burada görünür.';
+                    empty.style.display = (m === 'classic' && !rows.length) ? 'block' : 'none';
+                }
             }
             btn.addEventListener('click', function () { try { localStorage.setItem('mt_home_recent', mode() === 'classic' ? 'timeline' : 'classic'); } catch (e) { } render(); });
             inp.addEventListener('input', render);

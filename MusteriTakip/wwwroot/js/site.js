@@ -1,4 +1,11 @@
 /* Müşteri Takip — tarayıcı tarafı: tema, canlı kur, resim sıkıştırma + filigran, form hesapları */
+
+// Liste filtreleri için satır gizle/göster. site.css'te satırlara ID'li seçicilerle "display:grid !important"
+// verildiğinden yalnızca hidden yetmez; HTML'deki gibi satır içi display:none !important kullanılır.
+window.mtHide = function (el, hide) {
+    el.hidden = !!hide;
+    if (hide) el.style.setProperty('display', 'none', 'important'); else el.style.removeProperty('display');
+};
 (function () {
     'use strict';
     var $ = function (s, r) { return (r || document).querySelector(s); };
@@ -297,6 +304,78 @@
     document.addEventListener('keydown', function (e) {
         if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) { var g = $('#gsInput'); if (g) { e.preventDefault(); g.focus(); g.select(); } }
     });
+    // ---------- GENEL ARAMA (HTML: "GENEL ARAMA" — yazdıkça açılan müşteri/sipariş listesi) ----------
+    (function () {
+        var inp = document.getElementById('gsInput'), pop = document.getElementById('gsPop'), form = document.getElementById('gSearch');
+        if (!inp || !pop || !form) return;
+        var data = null, loading = null, items = [], cur = -1;
+        var detailsUrl = (form.getAttribute('action') || '/Customers').replace(/\/(Index)?$/, '') + '/Details/';
+        function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+        function norm(t) { return String(t == null ? '' : t).toLocaleLowerCase('tr').replace(/ı/g, 'i').normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+        function hl(text, q) {
+            var t = String(text == null ? '' : text); if (!q) return esc(t);
+            var n = norm(t), i = n.indexOf(q); if (i < 0 || n.length !== t.length) return esc(t);
+            return esc(t.slice(0, i)) + '<mark>' + esc(t.slice(i, i + q.length)) + '</mark>' + esc(t.slice(i + q.length));
+        }
+        function fdate(d) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || ''); return m ? m[3] + '.' + m[2] + '.' + m[1] : ''; }
+        function money(v) { return (Number(v) || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' $'; }
+        function load() {
+            if (data) return Promise.resolve(data);
+            if (!loading) loading = fetch(detailsUrl.replace(/Details\/$/, 'SearchData'), { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+                .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+                .then(function (j) { var byId = {}; j.customers.forEach(function (c) { byId[c.id] = c; }); j.records.forEach(function (r) { r.c = byId[r.cid]; }); data = j; return j; })
+                .catch(function (e) { loading = null; throw e; });
+            return loading;
+        }
+        function search(q) {
+            var cs = [], rs = [];
+            data.customers.forEach(function (c) {
+                if (norm(c.name).indexOf(q) >= 0 || norm(c.code).indexOf(q) >= 0 || norm(c.phone).replace(/\s/g, '').indexOf(q.replace(/\s/g, '')) >= 0) cs.push({ type: 'c', c: c });
+            });
+            data.records.forEach(function (r) {
+                if (r.c && (norm(r.model).indexOf(q) >= 0 || norm(r.code).indexOf(q) >= 0 || norm(r.note).indexOf(q) >= 0)) rs.push({ type: 'r', c: r.c, r: r });
+            });
+            rs.sort(function (a, b) { return (b.r.date || '').localeCompare(a.r.date || '') || b.r.id - a.r.id; });
+            return cs.slice(0, 8).concat(rs.slice(0, 14));
+        }
+        function render() {
+            var q = norm(inp.value.trim());
+            if (!q) { pop.hidden = true; items = []; return; }
+            if (!data) { load().then(render, function () { pop.innerHTML = '<div class="gs-empty">Arama verisi yüklenemedi.</div>'; pop.hidden = false; }); return; }
+            items = search(q); cur = items.length ? 0 : -1;
+            if (!items.length) { pop.innerHTML = '<div class="gs-empty">Sonuç bulunamadı.</div>'; pop.hidden = false; return; }
+            var h = '', lastT = '';
+            items.forEach(function (it, i) {
+                if (it.type !== lastT) { h += '<div class="gs-h">' + (it.type === 'c' ? 'Müşteriler' : 'Siparişler') + '</div>'; lastT = it.type; }
+                if (it.type === 'c') {
+                    var sub = [it.c.code ? hl(it.c.code, q) : '', it.c.phone ? hl(it.c.phone, q) : ''].filter(Boolean).join(' · ') || 'Müşteri';
+                    h += '<div class="gs-it" data-i="' + i + '"><span class="gs-ph" style="display:flex;align-items:center;justify-content:center;font-weight:700;">' + esc((it.c.name || '?').trim().charAt(0).toLocaleUpperCase('tr')) + '</span><span class="gs-t"><b>' + hl(it.c.name, q) + '</b><small>' + sub + '</small></span></div>';
+                } else {
+                    var r = it.r;
+                    h += '<div class="gs-it" data-i="' + i + '">' + (r.image ? '<img src="' + esc(r.image) + '" alt="">' : '<span class="gs-ph"></span>') +
+                        '<span class="gs-t"><b>' + hl(r.model || '(isimsiz)', q) + (r.code ? ' · ' + hl(r.code, q) : '') + '</b><small>' + esc(it.c.name) + ' · ' + fdate(r.date) + (r.price != null ? ' · ' + money(r.price) : '') + '</small></span></div>';
+                }
+            });
+            pop.innerHTML = h; pop.hidden = false; mark();
+        }
+        function mark() { pop.querySelectorAll('.gs-it').forEach(function (el) { el.classList.toggle('on', +el.dataset.i === cur); }); var on = pop.querySelector('.gs-it.on'); if (on) on.scrollIntoView({ block: 'nearest' }); }
+        function go(i) {
+            var it = items[i]; if (!it) return;
+            pop.hidden = true; inp.value = ''; inp.blur();
+            location.href = detailsUrl + it.c.id + (it.type === 'r' ? '#rec-' + it.r.id : '');
+        }
+        inp.addEventListener('input', render);
+        inp.addEventListener('focus', function () { load().catch(function () { }); if (inp.value.trim()) render(); });
+        inp.addEventListener('keydown', function (e) {
+            if (e.key === 'ArrowDown') { e.preventDefault(); if (items.length) { cur = (cur + 1) % items.length; mark(); } }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); if (items.length) { cur = (cur - 1 + items.length) % items.length; mark(); } }
+            else if (e.key === 'Enter') { e.preventDefault(); if (items.length) go(cur); }
+            else if (e.key === 'Escape') { e.stopPropagation(); pop.hidden = true; inp.value = ''; inp.blur(); }
+        });
+        form.addEventListener('submit', function (e) { e.preventDefault(); });
+        pop.addEventListener('mousedown', function (e) { var el = e.target.closest('.gs-it'); if (el) { e.preventDefault(); go(+el.dataset.i); } });
+        document.addEventListener('mousedown', function (e) { if (!e.target.closest('#gSearch')) pop.hidden = true; });
+    })();
     $$('[data-fs]').forEach(function (b) {
         if (b.tagName !== 'BUTTON') return;
         var cur = store.get('mt_fs') || 'n';

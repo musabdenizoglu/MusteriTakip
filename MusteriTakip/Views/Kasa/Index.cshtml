@@ -93,7 +93,7 @@
                 var q = inp.value.toLocaleLowerCase('tr-TR').split(',').map(function (s) { return s.trim(); }).filter(Boolean), n = 0;
                 list.querySelectorAll('.hist-row').forEach(function (r) {
                     var ok = q.every(function (t) { return r.dataset.s.indexOf(t) >= 0; }) && inPeriod(r);
-                    r.hidden = !ok; if (ok) n++;
+                    mtHide(r, !ok); if (ok) n++;
                 });
                 $('kasaEmptyNote').style.display = n ? 'none' : '';
             }

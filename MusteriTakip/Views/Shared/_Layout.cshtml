@@ -55,7 +55,7 @@
             <button type="button" id="fmBurger" aria-label="Menüyü aç/kapat" title="Menüyü daralt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path><path d="M20 4v16"></path></svg></button>
             <h1 id="appTitle" data-i="@shop[..1]">@shop</h1>
             <form class="gsearch" id="gSearch" method="get" asp-controller="Customers" asp-action="Index" role="search">
-                <span class="gs-ic">🔍</span><input type="search" id="gsInput" name="q" placeholder="Ara: müşteri, kod, model…" autocomplete="off" aria-label="Genel arama"><span class="gs-k">Ctrl K</span>
+                <span class="gs-ic">🔍</span><input type="search" id="gsInput" name="q" placeholder="Ara: müşteri, kod, model…" autocomplete="off" aria-label="Genel arama"><span class="gs-k">Ctrl K</span><div class="gs-pop" id="gsPop" hidden></div>
             </form>
             <div class="live-ticker" id="liveTicker" title="Canlı piyasa fiyatları (her dakika yenilenir)">
                 <div class="lt-item"><span class="lt-name">Dolar</span><span class="lt-v"><small>Alış</small><b id="ltUsdBuy">—</b></span><span class="lt-v"><small>Satış</small><b id="ltUsdSell">—</b></span></div>

@@ -22,6 +22,10 @@ a.bk-chip { color: inherit; cursor: pointer; }
 form.gsearch { margin: 0; }
 form.inline { display: inline; margin: 0; }
 
+/* Liste filtreleri (ana sayfa, kasa, müşteri, sipariş) satırları "hidden" ile gizler; satırların
+   display:grid/flex kuralları bunu ezmesin. (HTML aynı işi style.display='none' !important ile yapar) */
+[hidden] { display: none !important; }
+
 /* Bilgi / hata mesajı (kaydedildi, silindi vb.) */
 .flash { margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; font-weight: 600; font-size: .9rem; border: 1px solid; }
 .flash.ok { background: #E8F5EE; border-color: #A9D8BD; color: #1E6B43; }

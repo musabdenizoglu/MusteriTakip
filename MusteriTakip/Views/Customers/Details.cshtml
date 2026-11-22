@@ -279,7 +279,7 @@
             function filter(inp, list, extra) {
                 var q = inp.value.toLocaleLowerCase('tr-TR').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
                 list.querySelectorAll('[data-s]').forEach(function (r) {
-                    r.hidden = !(q.every(function (t) { return r.dataset.s.indexOf(t) >= 0; }) && (!extra || extra(r)));
+                    mtHide(r, !(q.every(function (t) { return r.dataset.s.indexOf(t) >= 0; }) && (!extra || extra(r))));
                 });
             }
             $('recSearch').addEventListener('input', function () { filter($('recSearch'), $('recordsList')); });
