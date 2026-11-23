@@ -174,10 +174,7 @@
                             </div>
                         }
                     </div>
-                    @if (records.Count == 0)
-                    {
-                        <div class="empty-note" id="recordsEmptyNote">Bu müşteri için henüz sipariş yok. “+ Yeni Sipariş” ile ilk siparişi ekleyin.</div>
-                    }
+                    <div class="empty-note" id="recordsEmptyNote" style="@(records.Count == 0 ? "" : "display:none;")"></div>
                 </div>
             </div>
 
@@ -210,7 +207,7 @@
                             <partial name="_HistRow" model="m" view-data='new ViewDataDictionary(ViewData) { ["Mode"] = "cust" }' />
                         }
                     </div>
-                    <div class="empty-note" id="historyEmptyNote" style="@(Model.History.Count == 0 ? "" : "display:none;")"><div class="es"><div class="es-t">Henüz hareket yok</div><div class="es-s">Sipariş ve ödeme ekledikçe hesap burada oluşur.</div></div></div>
+                    <div class="empty-note" id="historyEmptyNote" style="@(Model.History.Count == 0 ? "" : "display:none;")"></div>
                 </div>
             </div>
         </div>
@@ -276,13 +273,21 @@
             mb.addEventListener('click', function (e) { e.stopPropagation(); mm.hidden = !mm.hidden; });
             document.addEventListener('click', function (e) { if (!mm.contains(e.target)) mm.hidden = true; });
             // Anlık arama (virgülle birden fazla terim)
-            function filter(inp, list, extra) {
+            // Sonuç yoksa boş durum kutusunda "Sonuç bulunamadı" (yalnız dönem seçiliyse "Bu dönemde hareket yok")
+            function filter(inp, list, extra, noteId, perOnly) {
                 var q = inp.value.toLocaleLowerCase('tr-TR').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
-                list.querySelectorAll('[data-s]').forEach(function (r) {
-                    mtHide(r, !(q.every(function (t) { return r.dataset.s.indexOf(t) >= 0; }) && (!extra || extra(r))));
+                var rows = list.querySelectorAll('[data-s]'), n = 0;
+                rows.forEach(function (r) {
+                    var ok = q.every(function (t) { return r.dataset.s.indexOf(t) >= 0; }) && (!extra || extra(r));
+                    mtHide(r, !ok); if (ok) n++;
                 });
+                if (!rows.length) return; // hiç kayıt yok: asıl mesaj sunucudan gelir
+                var nf = !n;
+                if (nf && perOnly && !q.length) mtEmptyNf(noteId, true, 'Bu dönemde hareket yok', 'Seçilen dönemde kayıt yok. Başka bir dönem seçin.');
+                else mtEmptyNf(noteId, nf);
+                $(noteId).style.display = nf ? '' : 'none';
             }
-            $('recSearch').addEventListener('input', function () { filter($('recSearch'), $('recordsList')); });
+            $('recSearch').addEventListener('input', function () { filter($('recSearch'), $('recordsList'), null, 'recordsEmptyNote'); });
             // Dönem filtresi (bu ay, geçen ay, bu yıl, geçen yıl)
             function inPeriod(r) {
                 var p = $('histPeriod').value; if (!p) return true;
@@ -293,7 +298,7 @@
                 else { from = new Date(y - 1, 0, 1); to = new Date(y, 0, 1); }
                 var x = new Date(r.dataset.d + 'T00:00:00'); return x >= from && x < to;
             }
-            function hf() { filter($('histSearch'), $('historyList'), inPeriod); }
+            function hf() { filter($('histSearch'), $('historyList'), inPeriod, 'historyEmptyNote', !!$('histPeriod').value); }
             $('histSearch').addEventListener('input', hf); $('histPeriod').addEventListener('change', hf);
             // Seçim kutuları: "Tümünü seç" ve sayaç
             [['recSelAll', 'recordsList', 'recSelCnt'], ['histSelAll', 'historyList', 'histSelCnt']].forEach(function (x) {

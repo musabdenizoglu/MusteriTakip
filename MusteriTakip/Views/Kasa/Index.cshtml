@@ -70,7 +70,7 @@
                     <partial name="_HistRow" model="m" view-data='new ViewDataDictionary(ViewData) { ["Mode"] = "kasa" }' />
                 }
             </div>
-            <div class="empty-note" id="kasaEmptyNote" style="@(items.Count == 0 ? "" : "display:none;")"><div class="es"><div class="es-t">Kasa boş</div><div class="es-s">Ödeme ve giderler burada tarih sırasıyla listelenir.</div></div></div>
+            <div class="empty-note" id="kasaEmptyNote" style="@(items.Count == 0 ? "" : "display:none;")"></div>
         </div>
     </div>
 </div>
@@ -95,6 +95,11 @@
                     var ok = q.every(function (t) { return r.dataset.s.indexOf(t) >= 0; }) && inPeriod(r);
                     mtHide(r, !ok); if (ok) n++;
                 });
+                var total = list.querySelectorAll('.hist-row').length, nf = !n && total > 0;
+                if (nf && per.value && !q.length) mtEmptyNf('kasaEmptyNote', true, 'Bu dönemde hareket yok', 'Seçilen dönemde kayıt yok. Başka bir dönem seçin.');
+                else mtEmptyNf('kasaEmptyNote', nf);
+                // Liste boşken 320px'lik kutu gizlenir, mesaj kalan alanın ortasında durur
+                mtHide(list, !n); $('kasaScroll').classList.toggle('is-empty', !n);
                 $('kasaEmptyNote').style.display = n ? 'none' : '';
             }
             inp.addEventListener('input', apply); per.addEventListener('change', apply); apply();

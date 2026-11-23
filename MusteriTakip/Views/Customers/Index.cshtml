@@ -51,7 +51,7 @@
                 </li>
             }
         </ul>
-        <div class="empty-note" id="custEmptyNote" style="@(Model.Items.Count == 0 ? "" : "display:none;")">Henüz müşteri yok. Sağ üstteki “+ Yeni Müşteri” ile ilk müşterinizi ekleyin.</div>
+        <div class="empty-note" id="custEmptyNote" data-total="@Model.TotalCount" style="@(Model.Items.Count == 0 ? "" : "display:none;")"></div>
     </div>
 </div>
 
@@ -65,10 +65,19 @@
                 var li = e.target.closest('li[data-href]'); if (li) location.href = li.dataset.href;
             });
             // Yazarken anında süz (HTML gibi); Enter sunucuda arar
+            // Eşleşme yoksa "Kayıtlı müşteri bulunamadı"; hiç müşteri yoksa "Henüz müşteri yok"
+            var note = document.getElementById('custEmptyNote'), total = parseInt(note.dataset.total, 10) || 0;
+            function syncEmpty() {
+                var shown = ul.querySelectorAll('li:not([hidden])').length;
+                mtEmptyNf('custEmptyNote', !shown && total > 0);
+                note.style.display = shown ? 'none' : '';
+            }
             inp.addEventListener('input', function () {
                 var t = inp.value.trim().toLocaleLowerCase('tr-TR');
                 ul.querySelectorAll('li').forEach(function (li) { mtHide(li, t !== '' && li.dataset.name.indexOf(t) < 0); });
+                syncEmpty();
             });
+            syncEmpty();
             // Kalem düğmeleri aynı hizada: en uzun müşteri adına göre (HTML: --clname)
             try {
                 var first = ul.querySelector('.cl-name');

@@ -49,3 +49,12 @@ a.qa, a.qa:hover { text-decoration: none; color: inherit; }
 .validation-summary-valid { display: none !important; }
 .record-form .validation-summary-errors { flex: 1 0 100%; grid-column: 1 / -1; color: var(--danger); font-weight: 600; font-size: .88rem; }
 .record-form .validation-summary-errors ul { margin: 0; padding-left: 18px; }
+/* Boş durum: arama sonucu boşken "bulunamadı" bloğu, hiç kayıt yokken asıl mesaj (site.js → mtEmptyNf) */
+html body .empty-note .es-nf { display: none !important; }
+html body .empty-note.nf .es-def { display: none !important; }
+html body .empty-note.nf .es-nf { display: flex !important; }
+/* Ana sayfa: liste boşken mesaj kartın ortasında */
+html body #panelRecent #homeRecentEmptyNote { margin: auto !important; }
+/* Kasa hareketleri: liste boşken mesaj kalan alanın ortasında */
+html body #panelKasa.active #kasaScroll.is-empty { flex: 1 1 auto !important; min-height: 320px; }
+html body #panelKasa.active #kasaScroll.is-empty > #kasaEmptyNote { flex: 1 1 auto !important; display: flex !important; align-items: center; justify-content: center; min-height: 320px; }

@@ -91,6 +91,8 @@ public class CustomerListVm
     public string? Search { get; set; }
     public string? Sort { get; set; }
     public int TrashCount { get; set; }
+    /// <summary>Aramadan bağımsız toplam müşteri sayısı ("henüz müşteri yok" / "bulunamadı" ayrımı için).</summary>
+    public int TotalCount { get; set; }
 }
 
 public class CustomerFormVm

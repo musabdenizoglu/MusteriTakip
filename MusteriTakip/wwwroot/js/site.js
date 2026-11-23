@@ -967,3 +967,41 @@ window.mtHide = function (el, hide) {
         } catch (err) { location.href = url; }
     }, true);
 })();
+
+// ---------------- Boş durum kutuları (HTML: "ARAYÜZ: BOŞ DURUM ÇİZİMLERİ") ----------------
+// Her kutu iki blok taşır: .es-def (hiç kayıt yok) ve .es-nf (arama/dönem sonucu boş).
+// mtEmptyNf(id, nf, başlık?, alt yazı?) ile hangisinin görüneceği seçilir.
+(function () {
+    var ic = {
+        ring: '<svg viewBox="0 0 96 96" fill="none"><circle cx="48" cy="48" r="44" fill="var(--teal)" fill-opacity=".08"/><path d="M38 20h20l6 9-16 12-16-12z" fill="var(--amber)" fill-opacity=".85"/><circle cx="48" cy="58" r="20" stroke="var(--teal)" stroke-width="5"/><circle cx="72" cy="28" r="3" fill="var(--amber)"/><circle cx="22" cy="40" r="2" fill="var(--teal)"/></svg>',
+        user: '<svg viewBox="0 0 96 96" fill="none"><circle cx="48" cy="48" r="44" fill="var(--teal)" fill-opacity=".08"/><circle cx="48" cy="38" r="13" fill="var(--teal)" fill-opacity=".75"/><path d="M24 74c3-13 13-19 24-19s21 6 24 19" fill="var(--teal)" fill-opacity=".45"/><circle cx="74" cy="26" r="9" fill="var(--amber)"/><path d="M74 21v10M69 26h10" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>',
+        cash: '<svg viewBox="0 0 96 96" fill="none"><circle cx="48" cy="48" r="44" fill="var(--teal)" fill-opacity=".08"/><rect x="18" y="32" width="60" height="34" rx="6" fill="var(--teal)" fill-opacity=".7"/><circle cx="48" cy="49" r="9" fill="var(--panel)"/><text x="48" y="53.5" text-anchor="middle" font-size="12" font-weight="700" fill="var(--teal)">$</text><rect x="24" y="24" width="48" height="6" rx="3" fill="var(--amber)" fill-opacity=".8"/></svg>',
+        list: '<svg viewBox="0 0 96 96" fill="none"><circle cx="48" cy="48" r="44" fill="var(--teal)" fill-opacity=".08"/><rect x="26" y="20" width="44" height="56" rx="6" fill="var(--panel)" stroke="var(--teal)" stroke-width="3"/><path d="M35 36h26M35 46h26M35 56h16" stroke="var(--amber)" stroke-width="4" stroke-linecap="round"/></svg>'
+    };
+    var NF_SUB = 'Aramanıza uyan kayıt yok. Aramayı değiştirin veya temizleyin.';
+    // id: [ikon, başlık, alt yazı, düğme yazısı, tıklanacak öğe, "bulunamadı" başlığı]
+    var ES = {
+        homeRecentEmptyNote: ['ring', 'Henüz sipariş yok', 'İlk siparişinizi kaydedin; resmiyle birlikte burada görünür.', 'İlk siparişi ekle', '#fmSide a[data-k="order"]', 'Sonuç bulunamadı'],
+        recordsEmptyNote: ['ring', 'Bu müşteri için sipariş yok', 'Resim, fiyat ve tarih girerek ilk siparişi ekleyin.', '+ İlk siparişi ekle', '#newRecordBtn', 'Sonuç bulunamadı'],
+        custEmptyNote: ['user', 'Henüz müşteri yok', 'İlk müşterinizi kaydedin; siparişlerini ve ödemelerini takip edin.', 'Müşteri Ekle', '#custNewBtn', 'Kayıtlı müşteri bulunamadı'],
+        historyEmptyNote: ['cash', 'Henüz hareket yok', 'Sipariş ve ödeme ekledikçe hesap burada oluşur.', null, null, 'Sonuç bulunamadı'],
+        kasaEmptyNote: ['cash', 'Kasa boş', 'Ödeme ve giderler burada tarih sırasıyla listelenir.', null, null, 'Sonuç bulunamadı'],
+        expenseEmptyNote: ['list', 'Henüz gider yok', '“Gider Ekle” ile ilk giderinizi ekleyin; kategoriye göre raporlanır.', null, null, null]
+    };
+    Object.keys(ES).forEach(function (id) {
+        var el = document.getElementById(id); if (!el) return;
+        var c = ES[id];
+        el.innerHTML = '<div class="es es-def">' + ic[c[0]] + '<div class="es-t">' + c[1] + '</div><div class="es-s">' + c[2] + '</div>'
+            + (c[3] ? '<button type="button" class="btn sm">' + c[3] + '</button>' : '') + '</div>'
+            + (c[5] ? '<div class="es es-nf">' + ic[c[0]] + '<div class="es-t">' + c[5] + '</div><div class="es-s">' + NF_SUB + '</div></div>' : '');
+        if (c[3]) el.querySelector('.es-def button').addEventListener('click', function () { var t = document.querySelector(c[4]); if (t) t.click(); });
+    });
+    window.mtEmptyNf = function (id, nf, title, sub) {
+        var el = document.getElementById(id); if (!el) return;
+        el.classList.toggle('nf', !!nf);
+        var b = el.querySelector('.es-nf'); if (!b) return;
+        if (!b.dataset.t) { b.dataset.t = b.querySelector('.es-t').textContent; b.dataset.s = b.querySelector('.es-s').textContent; }
+        b.querySelector('.es-t').textContent = title || b.dataset.t;
+        b.querySelector('.es-s').textContent = sub || b.dataset.s;
+    };
+})();

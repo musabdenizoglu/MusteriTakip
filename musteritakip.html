@@ -3725,6 +3725,16 @@ html body #cariSubView .cari-actions .qa .qa-t{white-space:nowrap; line-height:1
     renderHomeRecent();
   }
 
+  // Boş durum kutusu: nf=true → "bulunamadı" (arama/dönem sonucu boş), false → asıl "henüz kayıt yok" mesajı
+  function setEmptyNf(id, nf, title, sub){
+    const el = $(id); if(!el) return;
+    el.classList.toggle('nf', !!nf);
+    const b = el.querySelector('.es-nf'); if(!b) return;
+    if(!b.dataset.t){ b.dataset.t = b.querySelector('.es-t').textContent; b.dataset.s = b.querySelector('.es-s').textContent; }
+    b.querySelector('.es-t').textContent = title || b.dataset.t;
+    b.querySelector('.es-s').textContent = sub || b.dataset.s;
+  }
+
   // ---------- CUSTOMER LIST ----------
   function renderCustomerList(){
     const term = getCustSearchTerm();
@@ -3744,6 +3754,7 @@ html body #cariSubView .cari-actions .qa .qa-t{white-space:nowrap; line-height:1
     const ul = $('custList');
     ul.innerHTML = '';
     $('custEmptyNote').style.display = list.length ? 'none' : 'block';
+    setEmptyNf('custEmptyNote', !list.length && !!term && getCustomers().length > 0);
     list.forEach(c=>{
       const li = document.createElement('li');
       li.className = c.id === selectedCustomerId ? 'selected' : '';
@@ -5787,6 +5798,12 @@ html body #cariSubView .cari-actions .qa .qa-t{white-space:nowrap; line-height:1
     wrap.innerHTML = '';
     ensureKasaSelBar();
     $('kasaEmptyNote').style.display = items.length ? 'none' : 'block';
+    {
+      const q = !!$('kasaSearch').value.trim(), per = !!$('kasaPeriod').value;
+      const nf = !items.length && (q || per) && (kasaAllItems || []).length > 0;
+      if(nf && per && !q) setEmptyNf('kasaEmptyNote', true, 'Bu dönemde hareket yok', 'Seçilen dönemde kayıt yok. Başka bir dönem seçin.');
+      else setEmptyNf('kasaEmptyNote', nf);
+    }
     items.forEach(it=>{ const rw = buildMovementRow(it); rw._kasaCust = it.custId; wrap.appendChild(rw); });
     updKasaSel();
     requestAnimationFrame(fitKasaCust);
@@ -5950,6 +5967,7 @@ html body #cariSubView .cari-actions .qa .qa-t{white-space:nowrap; line-height:1
     const wrap = $('homeRecentList');
     wrap.innerHTML = '';
     $('homeRecentEmptyNote').style.display = items.length ? 'none' : 'block';
+    setEmptyNf('homeRecentEmptyNote', !items.length && !!String(($('homeRecentSearch') || {}).value || '').trim() && homeRecentAllItems.length > 0);
     items.forEach(it=> wrap.appendChild(buildHomeRecentRow(it)));
   }
   function syncHomeRecentHead(){
@@ -5984,6 +6002,7 @@ html body #cariSubView .cari-actions .qa .qa-t{white-space:nowrap; line-height:1
     ev.sort((a,b)=> (b.d||'').localeCompare(a.d||'') || b.k - a.k);
     const txt = e => (e.c.name + ' ' + (e.t==='rec' ? (e.r.model||'') + ' ' + (e.r.code||'') + ' ' + (e.r.kind||'') : (e.t==='exp' ? 'gider ' + expLabel(e.x) + ' ' + (e.x.note||'') : 'ödeme ' + (e.p.kind||'') + ' ' + ((payDescParts(e.p)||{}).main||''))) + ' ' + formatDate(e.d) + ' ' + e.d).toLocaleLowerCase('tr-TR');
     const list = (q.length ? ev.filter(e=>{ const tx = txt(e); return q.every(t=> tx.includes(t)); }) : ev).slice(0, 60);
+    if(!list.length && q.length && ev.length){ setEmptyNf('homeRecentEmptyNote', true); $('homeRecentEmptyNote').style.display = 'block'; return; }
     if(!list.length){ wrap.innerHTML = '<div class="tl-empty">Hareket yok</div>'; return; }
     const payTxt = p => p.payType === 'gr' ? (Number(p.gram)||0).toLocaleString('tr-TR',{maximumFractionDigits:3}) + ' gr altın' : (p.payType === 'tl' ? (Number(p.tl)||0).toLocaleString('tr-TR') + ' ₺' : (p.payType === 'eur' ? (Number(p.eur)||0).toLocaleString('tr-TR') + ' €' : 'Nakit / $'));
     let lastMonth = '';
@@ -7856,9 +7875,13 @@ html body #cariSubView .cari-actions .qa .qa-t{white-space:nowrap; line-height:1
       ['kasaEmptyNote', 'cash', 'Kasa boş', 'Ödeme ve giderler burada tarih sırasıyla listelenir.', null, null],
       ['expenseEmptyNote', 'list', 'Henüz gider yok', 'Malzeme, döküm, kira gibi giderleri yukarıdan ekleyin.', null, null]
     ];
+    // Arama sonucu boşsa gösterilecek "bulunamadı" başlıkları (hiç kayıt yokken yukarıdaki asıl mesaj görünür)
+    const NF = {homeRecentEmptyNote:'Sonuç bulunamadı', custEmptyNote:'Kayıtlı müşteri bulunamadı', kasaEmptyNote:'Sonuç bulunamadı'};
+    const NF_SUB = 'Aramanıza uyan kayıt yok. Aramayı değiştirin veya temizleyin.';
     ES.forEach(([id, icon, t, sub, btn, fn])=>{
       const el = $(id); if(!el) return;
-      el.innerHTML = `<div class="es">${ic[icon]}<div class="es-t">${t}</div><div class="es-s">${sub}</div>${btn ? `<button type="button" class="btn sm">${btn}</button>` : ''}</div>`;
+      el.innerHTML = `<div class="es es-def">${ic[icon]}<div class="es-t">${t}</div><div class="es-s">${sub}</div>${btn ? `<button type="button" class="btn sm">${btn}</button>` : ''}</div>`
+        + (NF[id] ? `<div class="es es-nf">${ic[icon]}<div class="es-t">${NF[id]}</div><div class="es-s">${NF_SUB}</div></div>` : '');
       if(btn && fn) el.querySelector('button').addEventListener('click', fn);
     });
   })();
@@ -11286,5 +11309,18 @@ html[data-theme="dark"]:not(.zz) body #homeRecentList .tl-item .tl-amt:not(.pay)
 html[data-skin="kurumsal"]:not([data-theme="dark"]):not(.zz) body #homeRecentList .tl-item .tl-amt:not(.pay){color:#0072bc !important;}
 html[data-skin="kurumsal"][data-theme="dark"]:not(.zz) body #homeRecentList .tl-item .tl-amt:not(.pay){color:#2f8fd6 !important;}
 html:not(.zz) body #homeRecentList .tl-item .tl-amt:not(.pay) .tl-amt-sub{color:var(--ink-soft) !important;}
+</style>
+<style id="emptyNfCss">
+/* Boş durum: arama sonucu boşken "bulunamadı" bloğu, hiç kayıt yokken asıl mesaj */
+html body .empty-note .es-nf{display:none !important}
+html body .empty-note.nf .es-def{display:none !important}
+html body .empty-note.nf .es-nf{display:flex !important}
+/* Ana sayfa: liste boşken yer kaplamasın, mesaj kartın ortasında dursun */
+html body .home-content.recent-mode #panelRecent.active #homeRecentList:empty{flex:0 0 auto !important;min-height:0 !important}
+html body #panelRecent #homeRecentEmptyNote{margin:auto !important}
+/* Kasa hareketleri: liste boşken mesaj kalan alanın ortasında */
+html body #panelKasa.active #kasaScroll > #kasaList:empty{display:none !important}
+html body #panelKasa.active #kasaScroll:has(> #kasaList:empty){flex:1 1 auto !important;min-height:320px}
+html body #panelKasa.active #kasaScroll > #kasaEmptyNote:not([style*="none"]){flex:1 1 auto !important;display:flex !important;align-items:center;justify-content:center;min-height:320px}
 </style>
 </body>

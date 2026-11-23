@@ -47,7 +47,7 @@ public class CustomersController : Controller
                   + await _db.OrderRecords.IgnoreQueryFilters().CountAsync(r => r.DeletedAt != null)
                   + await _db.Payments.IgnoreQueryFilters().CountAsync(p => p.DeletedAt != null)
                   + await _db.Expenses.IgnoreQueryFilters().CountAsync(e => e.DeletedAt != null);
-        return View(new CustomerListVm { Items = items.ToList(), Search = q, Sort = sort, TrashCount = trash });
+        return View(new CustomerListVm { Items = items.ToList(), Search = q, Sort = sort, TrashCount = trash, TotalCount = customers.Count });
     }
 
     // GET /Customers/SearchData — üst çubuktaki genel arama (gsearch) için müşteri + sipariş listesi

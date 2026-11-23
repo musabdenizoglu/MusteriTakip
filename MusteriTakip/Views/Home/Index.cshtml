@@ -128,7 +128,7 @@
                 }
             </ol>
         </template>
-        <div class="empty-note" id="homeRecentEmptyNote" style="@(Model.Recent.Count == 0 ? "" : "display:none;")">Henüz sipariş yok. “Yeni Sipariş” ile ilk kaydı ekleyin; burada görünür.</div>
+        <div class="empty-note" id="homeRecentEmptyNote" style="@(Model.Recent.Count == 0 ? "" : "display:none;")"></div>
     </div>
 </div>
 
@@ -161,14 +161,13 @@
                         while (n && !n.classList.contains('tl-month')) { if (!n.hidden) any = true; n = n.nextElementSibling; }
                         mtHide(h, !any);
                     });
-                    if (!shown) list.innerHTML = '<div class="tl-empty">Hareket yok</div>';
                 }
-                if (m === 'classic' && rows.length && !shown) {
-                    empty.textContent = 'Aramanıza uyan kayıt yok. Aramayı değiştirin veya temizleyin.'; empty.style.display = 'block';
-                } else {
-                    empty.textContent = 'Henüz sipariş yok. “Yeni Sipariş” ile ilk kaydı ekleyin; burada görünür.';
-                    empty.style.display = (m === 'classic' && !rows.length) ? 'block' : 'none';
-                }
+                // Arama sonucu boş → "Sonuç bulunamadı" (kartın ortasında); hiç kayıt yoksa asıl mesaj
+                var nf = q.length > 0 && rows.length > 0 && !shown;
+                if (m === 'timeline' && !shown && !nf) list.innerHTML = '<div class="tl-empty">Hareket yok</div>';
+                mtHide(list, nf || (m === 'classic' && !rows.length));
+                mtEmptyNf('homeRecentEmptyNote', nf);
+                empty.style.display = (nf || (m === 'classic' && !rows.length)) ? 'block' : 'none';
             }
             btn.addEventListener('click', function () { try { localStorage.setItem('mt_home_recent', mode() === 'classic' ? 'timeline' : 'classic'); } catch (e) { } render(); });
             inp.addEventListener('input', render);
