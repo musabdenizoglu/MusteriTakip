@@ -8,7 +8,7 @@
     <div class="card">
         <div class="records-head cust-head">
             <h2>Müşteriler</h2>
-            <span><a class="btn secondary trash-chip" id="trashGoBtn" asp-controller="Trash" asp-action="Index" title="Çöp kutusu (son 30 gün)" aria-label="Çöp kutusu (son 30 gün)">🗑 Çöp Kutusu <span class="count-pill" id="trashCnt">@(Model.TrashCount > 0 ? Model.TrashCount.ToString() : "")</span></a> <a class="btn save-record" id="custNewBtn" asp-action="Create">+ Yeni Müşteri</a></span>
+            <span><a class="btn secondary trash-chip" id="trashGoBtn" asp-controller="Trash" asp-action="Index" title="Çöp kutusu (son 30 gün)" aria-label="Çöp kutusu (son 30 gün)">🗑 Çöp Kutusu <span class="count-pill" id="trashCnt">@(Model.TrashCount > 0 ? Model.TrashCount.ToString() : "")</span></a> <a class="btn save-record" id="custNewBtn" data-modal asp-action="Create">+ Yeni Müşteri</a></span>
         </div>
         <form method="get" class="cust-sort-row" id="custSortForm">
             <input type="text" class="search" id="custSearch" name="q" value="@Model.Search" placeholder="Müşteri adıyla ara…" aria-label="Müşteri ara" autocomplete="off">

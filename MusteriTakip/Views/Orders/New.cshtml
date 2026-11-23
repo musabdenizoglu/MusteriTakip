@@ -29,7 +29,7 @@
                 </ul>
             </div>
         </div>
-        <div class="pc-drop" id="pickDrop" hidden><img alt="" /><span>Bu resim siparişe eklenecek</span></div>
+        <div class="pc-drop" id="pickDrop" hidden><span class="pc-drop-img"><img alt="" /><button type="button" class="pc-drop-x" title="Resmi kaldır" aria-label="Resmi kaldır">×</button></span><span>Bu resim siparişe eklenecek · değiştirmek için üstüne başka resim sürükleyin</span></div>
         <input type="hidden" name="customerId" id="pickCustId" />
         <p class="pm-error" id="pickErr" role="alert"></p>
         <div class="confirm-actions">
@@ -45,10 +45,28 @@
                 go = document.getElementById('pickGo'), err = document.getElementById('pickErr'),
                 items = Array.prototype.slice.call(list.querySelectorAll('li')), active = -1;
             // "Yeni Sipariş" butonuna resim bırakıldıysa önizlemesini göster (sipariş kartına aktarılacak)
-            if (window.__dropImg) {
-                var pd = document.getElementById('pickDrop');
-                try { pd.querySelector('img').src = URL.createObjectURL(window.__dropImg); pd.hidden = false; } catch (x) { }
+            var pd = document.getElementById('pickDrop'), pimg = pd.querySelector('img');
+            function setDrop(file) {
+                try { if (pimg.src && pimg.src.indexOf('blob:') === 0) URL.revokeObjectURL(pimg.src); } catch (x) { }
+                window.__dropImg = file || null;
+                if (!file) { pimg.removeAttribute('src'); pd.hidden = true; return; }
+                try { pimg.src = URL.createObjectURL(file); pd.hidden = false; } catch (x) { }
             }
+            if (window.__dropImg) setDrop(window.__dropImg);
+            // × : yanlış resmi kaldır
+            pd.querySelector('.pc-drop-x').addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); setDrop(null); inp.focus(); });
+            // Karta başka resim sürükleyip bırakınca eklenen resim değişir (resim yoksa eklenir)
+            var hasFiles = function (e) { try { return Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0; } catch (x) { return false; } };
+            var depth = 0;
+            f.addEventListener('dragenter', function (e) { if (!hasFiles(e)) return; e.preventDefault(); depth++; f.classList.add('dz-over'); });
+            f.addEventListener('dragover', function (e) { if (!hasFiles(e)) return; e.preventDefault(); try { e.dataTransfer.dropEffect = 'copy'; } catch (x) { } });
+            f.addEventListener('dragleave', function () { depth = Math.max(0, depth - 1); if (!depth) f.classList.remove('dz-over'); });
+            f.addEventListener('drop', function (e) {
+                if (!hasFiles(e)) return;
+                e.preventDefault(); e.stopPropagation(); depth = 0; f.classList.remove('dz-over');
+                var file = Array.prototype.find.call(e.dataTransfer.files || [], function (x) { return /^image\//i.test(x.type || ''); });
+                if (file) setDrop(file);
+            });
             var up = function (s) { return (s || '').trim().toLocaleUpperCase('tr-TR'); };
             var visible = function () { return items.filter(function (li) { return !li.hidden; }); };
             var match = function () { var v = up(inp.value); return items.filter(function (li) { return up(li.dataset.name) === v; })[0]; };

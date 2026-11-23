@@ -349,6 +349,18 @@
 
 
 
+  .confirm-card.newcust-card{max-width:460px; max-height:calc(100vh - 48px); overflow:auto;}
+  .newcust-card .pay-head{margin-bottom:14px;}
+  .newcust-card .newcust-top{align-items:center; margin-bottom:18px;}
+  .newcust-card .newcust-fields{flex:0 1 230px;}
+  .newcust-card .newcust-fields > input, .newcust-card .unit-in, .newcust-card .has-mic{width:100%;}
+  .newcust-card .has-mic{align-items:center;}
+  .newcust-card .mic-btn{width:36px; height:36px; flex-shrink:0; border-radius:50%;}
+  .newcust-card #custProfileThumb{color:#5b3a9c; position:relative; overflow:visible;}
+  .newcust-card #custProfileThumb img{width:100%; height:100%; object-fit:cover; border-radius:50%;}
+  .newcust-card #custProfileThumb:has(img) .ph{display:none;}
+  .newcust-card #custProfileThumb .thumb-x{top:2px; right:2px; width:24px; height:24px; font-size:16px;}
+  .newcust-card #Code::placeholder{text-transform:none; font-size:.8rem; letter-spacing:0;}
   .confirm-card.exp-card{max-width:620px; max-height:calc(100vh - 48px); overflow:auto;}
   .exp-card .pay-head h2{display:flex; align-items:center; gap:10px;}
   .exp-card .qa-i{width:34px; height:34px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; background:color-mix(in srgb, var(--k) 13%, transparent); color:var(--k);}
@@ -4048,6 +4060,9 @@ html[data-theme="dark"]:not(.zz) body #pickCustModal #pickCust{background:rgba(2
 #pickCustModal .pc-drop{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; align-self:end; padding:8px; border:1px dashed var(--line); border-radius:10px; font-size:.8rem; color:var(--ink-soft); text-align:center;}
 #pickCustModal .pc-drop[hidden]{display:none !important;}
 #pickCustModal .pc-drop img{max-width:100%; max-height:110px; border-radius:8px; object-fit:contain;}
+#pickCustModal .pc-drop-img{position:relative; display:inline-block; line-height:0;}
+#pickCustModal .pc-drop-x{position:absolute; top:-8px; right:-8px; width:24px; height:24px; min-width:0; min-height:0; padding:0; border:2px solid #fff; border-radius:50%; background:#D64545; color:#fff; font:700 15px/1 Arial,sans-serif; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 4px rgba(0,0,0,.35);}
+#pickCustModal .pc-drop-x:hover{background:#B83232;}
 
 /* ---------- Kurumsal tema, koyu mod: kesik çizgili kartlar ve Yeni Sipariş pencereleri ----------
    Açık moddaki #B3C1D5 çizginin koyu zemindeki (#15181D / panel #1E2228) karşılığı: aynı yumuşaklıkta ama seçilebilir */

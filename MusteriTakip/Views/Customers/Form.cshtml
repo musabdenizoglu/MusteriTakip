@@ -1,7 +1,63 @@
 @model CustomerFormVm
 @{
     var isNew = Model.Id == null;
-    ViewData["Title"] = isNew ? "Müşteri Kaydı" : "Müşteriyi Düzenle";
+    ViewData["Title"] = isNew ? "Yeni müşteri" : "Müşteriyi Düzenle";
+}
+@if (isNew)
+{
+    // Yeni müşteri: listeden data-modal ile pencere olarak açılır; doğrudan açılırsa pencere açık gelir.
+    <div class="confirm-modal open" id="newCustModal" data-standalone data-back="@Url.Action("Index")">
+        <div class="confirm-card newcust-card" role="dialog" aria-modal="true" aria-labelledby="newCustTitle">
+            <div class="pay-head">
+                <h2 id="newCustTitle">Yeni müşteri</h2>
+                <button type="button" class="x-close" aria-label="Kapat">✕</button>
+            </div>
+            <form method="post" asp-action="Create" data-image-form>
+                <div asp-validation-summary="ModelOnly" class="error"></div>
+                <div class="newcust-top">
+                    <div class="newcust-fields">
+                        <label asp-for="Name">Ad Soyad</label>
+                        <input asp-for="Name" class="upper" autocomplete="off" required autofocus />
+                        <span class="error" asp-validation-for="Name"></span>
+
+                        <label asp-for="Phone">Telefon</label>
+                        <input asp-for="Phone" type="tel" placeholder="05xx xxx xx xx" />
+
+                        <label asp-for="Email">E-posta</label>
+                        <input asp-for="Email" type="email" placeholder="ornek@eposta.com" />
+                        <span class="error" asp-validation-for="Email"></span>
+
+                        <label asp-for="Code">Müşteri kodu (2-3 harf)</label>
+                        <input asp-for="Code" class="upper" maxlength="3" autocomplete="off" placeholder="Boşsa otomatik (örn. MSB)" />
+                        <span class="error" asp-validation-for="Code"></span>
+
+                        <label asp-for="OpeningBalance">Açılış bakiyesi / eski borç ($)</label>
+                        <div class="unit-in">
+                            <input asp-for="OpeningBalance" type="number" min="0" step="0.01" placeholder="İsteğe bağlı" />
+                            <span class="u">$</span>
+                        </div>
+
+                        <label asp-for="OpeningDesc">Açıklama</label>
+                        <div class="has-mic">
+                            <input asp-for="OpeningDesc" spellcheck="true" lang="tr" autocomplete="off" placeholder="Açıklama ekle" title="Boş bırakılırsa: Açılış (Eski) bakiyesi" />
+                            <button type="button" class="mic-btn" title="Sesle yaz (Türkçe)" aria-label="Sesle yaz (Türkçe)"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z" /></svg></button>
+                        </div>
+                    </div>
+                    <div class="upload-btn profile-upload">
+                        <label class="thumb" id="custProfileThumb" for="profileFile" title="Profil resmi ekle" data-thumb>
+                            <svg class="ph" viewBox="0 0 24 24" width="34" height="34" fill="currentColor" aria-hidden="true"><circle cx="12" cy="8" r="4.2" /><path d="M3.5 21c.8-4.6 4.3-7.2 8.5-7.2s7.7 2.6 8.5 7.2z" /></svg>
+                            <button type="button" class="thumb-x" title="Resmi kaldır" aria-label="Resmi kaldır">×</button>
+                        </label>
+                        <input type="file" id="profileFile" accept="image/*" data-image-input="ImageData" data-max="600" />
+                        <input type="hidden" asp-for="ImageData" />
+                        <span class="lbl">Profil resmi ekle</span>
+                    </div>
+                </div>
+                <button type="submit" class="btn">Kaydet ve Sipariş Gir</button>
+            </form>
+        </div>
+    </div>
+    return;
 }
 <span class="back-pair"><a class="btn secondary" href="javascript:history.back()">← Geri</a></span>
 <div class="card">

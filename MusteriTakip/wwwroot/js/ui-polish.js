@@ -251,7 +251,7 @@ try {
   }
   window.__dzGive = give;
   // Buton üstüne bırakma: resmi sakla ve butonu çalıştır (yeni sipariş penceresi resimle açılır)
-  var BTN_SEL = '#goOrderBtn, #newRecordBtn, #mhPlus, .mt-order[data-mt="order"], #fmSide .fm-item[data-k="order"]';
+  var BTN_SEL = '#goOrderBtn, #newRecordBtn, #mhPlus, .mt-order[data-mt="order"], #fmSide .fm-item[data-k="order"], #custNewBtn, #fmSide .fm-kid[data-k="newcust"]';
   function btnZones(){
     let cur = null;
     function clearCur(){ if(cur){ cur.classList.remove('dz-over'); cur = null; } }
@@ -305,9 +305,30 @@ try {
       give('recordImage', f);
     });
   }
+  // Müşteri profil resmi avatarı (#profileFile): yeni müşteri penceresi sonradan eklendiği için belge düzeyinde dinlenir
+  function profileZone(){
+    let cur = null;
+    function box(e){ const b = e.target && e.target.closest ? e.target.closest('.profile-upload') : null; return b && b.querySelector('#profileFile') ? b : null; }
+    function clearCur(){ if(cur){ cur.classList.remove('dz-over'); cur = null; } }
+    document.addEventListener('dragover', function(e){
+      if(!hasFiles(e)) return; const b = box(e);
+      if(!b){ clearCur(); return; }
+      e.preventDefault(); try{ e.dataTransfer.dropEffect = 'copy'; }catch(_){}
+      if(cur !== b){ clearCur(); cur = b; b.classList.add('dz-over'); }
+    });
+    document.addEventListener('dragleave', function(e){ if(cur && (!e.relatedTarget || !cur.contains(e.relatedTarget))) clearCur(); });
+    document.addEventListener('drop', function(e){
+      if(!hasFiles(e)) return; const b = box(e); clearCur();
+      if(!b) return;
+      e.preventDefault(); e.stopPropagation();
+      const f = Array.prototype.find.call(e.dataTransfer.files||[], function(x){ return /^image\//i.test(x.type||''); });
+      give('profileFile', f);
+    });
+  }
   function init(){
     btnZones();
     recZone();
+    profileZone();
     zone(document.getElementById('custEditForm') || document.getElementById('custEditModal'), 'ceImage');
     const pf = document.getElementById('custProfileImage'), ef = document.getElementById('custEntryImage');
     zone(pf && pf.closest('.upload-btn'), 'custProfileImage');

@@ -738,7 +738,8 @@ window.mtHide = function (el, hide) {
                 var thumb = form.querySelector('[data-thumb]');
                 if (thumb) {   // önizlemeyi değiştir; "resmi kaldır" (×) düğmesi yerinde kalsın
                     var tx = thumb.querySelector('.thumb-x');
-                    Array.prototype.slice.call(thumb.childNodes).forEach(function (n) { if (n !== tx) n.remove(); });
+                    // .ph: yer tutucu simge (CSS ile resim varken gizlenir, resim silinince geri gelir)
+                    Array.prototype.slice.call(thumb.childNodes).forEach(function (n) { if (n !== tx && !(n.classList && n.classList.contains('ph'))) n.remove(); });
                     var im = document.createElement('img'); im.src = raw; im.alt = '';
                     thumb.insertBefore(im, tx || null);
                 }
@@ -962,6 +963,7 @@ window.mtHide = function (el, hide) {
             // "Yeni Sipariş" butonuna bırakılan resim: sipariş kartı açılınca resim alanına eklenir
             if (window.__dropImg) {
                 if (m.querySelector('#recordImage') && window.__dzGive) { window.__dzGive('recordImage', window.__dropImg); window.__dropImg = null; }
+                else if (m.querySelector('#profileFile') && window.__dzGive) { window.__dzGive('profileFile', window.__dropImg); window.__dropImg = null; }   // Yeni Müşteri butonuna bırakılan resim → profil resmi
                 else if (m.id !== 'pickCustModal') window.__dropImg = null;
             }
         } catch (err) { location.href = url; }

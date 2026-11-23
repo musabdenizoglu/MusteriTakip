@@ -107,7 +107,7 @@
             <button type="button" class="fm-ghead" data-href="@Url.Action("Index", "Customers")"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"></circle><path d="M5 20c.6-3.6 3.4-5.6 7-5.6s6.4 2 7 5.6"></path></svg><span class="fm-lbl">Müşteriler</span></button>
             <div class="fm-kids">
                 <a class="fm-kid@(On("cust"))" data-k="cust" asp-controller="Customers" asp-action="Index">Müşteriler</a>
-                <a class="fm-kid@(On("newcust"))" data-k="newcust" asp-controller="Customers" asp-action="Create">Yeni Müşteri</a>
+                <a class="fm-kid@(On("newcust"))" data-k="newcust" data-modal asp-controller="Customers" asp-action="Create">Yeni Müşteri</a>
             </div>
         </div>
         <div class="fm-grp@(kasaGrp ? " act open" : "")" data-g="kasa">
