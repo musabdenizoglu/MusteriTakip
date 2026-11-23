@@ -427,8 +427,8 @@ window.mtHide = function (el, hide) {
                 rx = (stage.scrollLeft + ax - r.left) / mImg.offsetWidth;
                 ry = (stage.scrollTop + ay - r.top) / mImg.offsetHeight;
             }
-            mImg.style.width = Math.round(nw * imgBase * imgZoom) + 'px';
-            mImg.style.height = Math.round(nh * imgBase * imgZoom) + 'px';
+            mImg.style.width = (nw * imgBase * imgZoom).toFixed(2) + 'px';
+            mImg.style.height = (nh * imgBase * imgZoom).toFixed(2) + 'px';
             stage.classList.toggle('zoomed', imgZoom > 1.001);
             r = stage.getBoundingClientRect();
             var px = ax !== undefined ? ax - r.left : stage.clientWidth / 2;
@@ -436,10 +436,24 @@ window.mtHide = function (el, hide) {
             stage.scrollLeft = rx * mImg.offsetWidth - px;
             stage.scrollTop = ry * mImg.offsetHeight - py;
         }
+        // Akıcı yakınlaştırma: hedef büyütmeye her karede yumuşakça yaklaşır, imlecin altındaki nokta sabit kalır
+        var tZoom = 1, zAnim = 0, zAx, zAy;
+        function stopAnim() { if (zAnim) cancelAnimationFrame(zAnim); zAnim = 0; }
+        function zoomStep() {
+            var d = tZoom - imgZoom;
+            if (Math.abs(d) < 0.002) { imgZoom = tZoom; applyZoom(zAx, zAy); zAnim = 0; return; }
+            imgZoom += d * 0.2;
+            applyZoom(zAx, zAy);
+            zAnim = requestAnimationFrame(zoomStep);
+        }
+        function zoomTo(z, x, y) {
+            tZoom = Math.min(Math.max(z, 1), 6); zAx = x; zAy = y;
+            if (!zAnim) zAnim = requestAnimationFrame(zoomStep);
+        }
         function openImg(src, note) {
             cap.innerHTML = '';
             if (note) { var d = document.createElement('div'); d.className = 'mc-note'; d.textContent = note; cap.appendChild(d); }
-            imgZoom = 1; mImg.style.width = ''; mImg.style.height = '';
+            stopAnim(); imgZoom = tZoom = 1; mImg.style.width = ''; mImg.style.height = '';
             mImg.onload = function () { imgBase = fitBase(); imgZoom = 1; applyZoom(); };
             mImg.src = src;
             modal.classList.add('open');
@@ -447,7 +461,7 @@ window.mtHide = function (el, hide) {
         }
         function closeImg() {
             if (!modal.classList.contains('open')) return;
-            modal.classList.remove('open'); mImg.onload = null; mImg.removeAttribute('src'); imgZoom = 1; drag = null;
+            modal.classList.remove('open'); mImg.onload = null; mImg.removeAttribute('src'); stopAnim(); imgZoom = tZoom = 1; drag = null;
         }
         document.addEventListener('click', function (e) {
             var img = e.target.closest('[data-zoom]');
@@ -461,15 +475,16 @@ window.mtHide = function (el, hide) {
         document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeImg(); });
         stage.addEventListener('wheel', function (e) {
             e.preventDefault();
-            var next = Math.min(Math.max(imgZoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15), 1), 6);
-            if (next === imgZoom) return;
-            imgZoom = next; applyZoom(e.clientX, e.clientY);
+            // Tekerlek/touchpad kaydırma miktarıyla orantılı, kademesiz büyütme (bir tekerlek çentiği ≈ %22)
+            var dy = e.deltaMode === 1 ? e.deltaY * 33 : (e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY);
+            dy = Math.max(-150, Math.min(150, dy));
+            zoomTo(tZoom * Math.exp(-dy * 0.002), e.clientX, e.clientY);
         }, { passive: false });
-        // Tek tık: büyüt / sıfırla (sürükleme sonrası bırakılan tık sayılmaz)
+        // Tek tık: tıklanan nokta 1,75 kat büyür / tekrar tıkla sıfırla (sürükleme sonrası bırakılan tık sayılmaz)
         var dragMoved = false;
         stage.addEventListener('click', function (e) {
             if (dragMoved) { dragMoved = false; return; }
-            imgZoom = imgZoom > 1.001 ? 1 : 2.5; applyZoom(e.clientX, e.clientY);
+            zoomTo(tZoom > 1.001 ? 1 : 1.75, e.clientX, e.clientY);
         });
         stage.addEventListener('mousedown', function (e) {
             dragMoved = false;
