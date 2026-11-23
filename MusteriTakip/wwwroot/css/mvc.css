@@ -32,6 +32,13 @@ form.inline { display: inline; margin: 0; }
 .flash.err { background: #FDECEC; border-color: #F0B4B4; color: #9B2C2C; }
 html[data-theme="dark"] .flash.ok { background: rgba(46, 125, 79, .18); border-color: rgba(46, 125, 79, .5); color: #9AD9B4; }
 html[data-theme="dark"] .flash.err { background: rgba(178, 59, 59, .18); border-color: rgba(178, 59, 59, .5); color: #F0A0A0; }
+/* Başarı mesajı birkaç saniye sonra kendiliğinden kapanır (site.js): önce solup hafif yukarı kayar,
+   ardından kapladığı yer yumuşakça kapanır — altındaki içerik zıplamaz. */
+.flash { overflow: hidden; box-sizing: border-box;
+         transition: opacity .4s ease, transform .4s ease,
+                     height .35s cubic-bezier(.4,0,.2,1) .25s, margin .35s cubic-bezier(.4,0,.2,1) .25s,
+                     padding .35s cubic-bezier(.4,0,.2,1) .25s, border-width .35s ease .25s; }
+.flash.out { opacity: 0; transform: translateY(-8px); height: 0 !important; margin: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
 
 /* Sunucuda çizilen satırlar: tıklanabilir satır bağlantısı */
 a.rec-row, a.hist-row { color: inherit; text-decoration: none; }

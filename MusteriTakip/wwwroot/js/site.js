@@ -135,6 +135,18 @@ window.mtHide = function (el, hide) {
             fmOrig.forEach(function (x) { x[0].className = x[1]; });
         });
     }
+    // Başarı mesajı ("Sipariş kaydedildi" vb.) 4 sn sonra yumuşak geçişle kendiliğinden kapanır.
+    // Fare üzerindeyken beklenir. Hata mesajları okunması gerektiği için açık kalır.
+    $$('.flash.ok').forEach(function (f) {
+        var timer;
+        function hide() {
+            if (f.matches(':hover')) { timer = setTimeout(hide, 1000); return; }
+            f.style.height = f.offsetHeight + 'px'; void f.offsetHeight;
+            f.classList.add('out');
+            setTimeout(function () { f.remove(); }, 750); // geçiş bitince (hareket azaltma açıksa da) kaldır
+        }
+        timer = setTimeout(hide, 4000);
+    });
     // Kullanıcı menüsü (sağ üst)
     var fmUser = $('#fmUser');
     if (fmUser) {
