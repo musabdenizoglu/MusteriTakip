@@ -140,7 +140,7 @@ public static class Ui
     /// <summary>Sipariş/borç satırındaki tür etiketi (Altın, Kalıp, Eski borç, Eski bakiye).</summary>
     public static string RecKind(OrderRecord r) => r.IsDebt ? (r.IsOpening ? "Eski bakiye" : "Eski borç") : Fmt.KindText(r.Kind);
 
-    public static string RecKindCls(OrderRecord r) => r.IsDebt ? " k-debt" : (r.Kind == IslemTuru.Kalip ? " k-kalip" : "");
+    public static string RecKindCls(OrderRecord r) => r.IsDebt ? " k-debt" : (r.Kind == IslemTuru.Kalip ? " k-kalip" : (r.Kind == IslemTuru.Altin ? " k-altin" : ""));
 
     public static string Time(DateTime utcOrLocal) =>
         (utcOrLocal.Kind == DateTimeKind.Utc ? utcOrLocal.ToLocalTime() : utcOrLocal).ToString("HH:mm", Fmt.Tr);

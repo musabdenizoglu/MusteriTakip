@@ -4099,3 +4099,10 @@ html body .home-recent.collapsed > h2{margin-bottom:0 !important;}
 html body #homeRecentList .home-rec-row > .model .hk{flex:0 0 auto !important; min-width:74px; gap:6px;}
 html body #homeRecentList .home-rec-row > .model .hk .kind-tag{white-space:nowrap; flex-shrink:0;}
 html body #homeRecentList .home-rec-row > .model .hk .note-info{margin-left:0; flex-shrink:0;}
+
+/* ==== goldKindTag ==== "Altın" etiketi her yerde (sipariş, ödeme, ana sayfa, kayıt listesi) ödeme satırındaki altın etiketiyle aynı: sarı zemin, koyu altın yazı, altın çerçeve */
+html:not(.zz):not(.zy):not(.zx) body .kind-tag.k-altin{background:var(--au-bg) !important; color:var(--au-ink) !important; border:1px solid var(--au-line) !important;}
+
+/* ==== payTagLikeCode ==== Ana sayfa "Ödeme" etiketi, aynı satırdaki ödeme kodu etiketiyle (ŞMS-Hurda / -Has / -₺ / -$) aynı renk ve çerçevede */
+html:not(.zz) body #homeRecentList .home-rec-row .kind-tag.k-pay:is(.k-purple,.k-green,.k-blue,.k-orange){background:color-mix(in srgb, var(--k) 16%, transparent) !important; color:var(--k) !important; border:1px solid color-mix(in srgb, var(--k) 40%, transparent) !important;}
+html:not(.zz) body #homeRecentList .home-rec-row .kind-tag.k-pay.k-orange{background:var(--au-bg) !important; color:var(--au-ink) !important; border-color:var(--au-line) !important;}

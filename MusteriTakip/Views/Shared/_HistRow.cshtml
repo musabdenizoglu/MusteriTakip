@@ -13,7 +13,7 @@
     // Etiket (Altın / Kalıp / Eski borç / Hurda / Nakit-$)
     string kindTxt = r != null ? Ui.RecKind(r) : (p != null ? Fmt.KindText(p.Kind) : "");
     var hurda = p != null && Ui.IsHurda(p);
-    var kindCls = hurda ? " k-hurda" : (kindTxt == "Kalıp" ? " k-kalip" : (kindTxt is "Eski borç" or "Eski bakiye" ? " k-debt" : ""));
+    var kindCls = hurda ? " k-hurda" : (kindTxt == "Kalıp" ? " k-kalip" : (kindTxt is "Eski borç" or "Eski bakiye" ? " k-debt" : (kindTxt == "Altın" ? " k-altin" : "")));
     var rate = p != null ? Ui.PayRate(p) : null;
 
     // Açıklama

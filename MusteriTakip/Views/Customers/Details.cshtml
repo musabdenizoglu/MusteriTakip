@@ -155,7 +155,7 @@
                                                 <div class="model-line">
                                                     <span class="mname" title="@r.Model">@r.Model</span>
                                                     <span class="mk">@if (kind != "")
-                                                        {<span class="kind-tag@(r.Kind == IslemTuru.Kalip ? " k-kalip" : "")">@kind</span>}</span>
+                                                        {<span class="kind-tag@(r.Kind == IslemTuru.Kalip ? " k-kalip" : (r.Kind == IslemTuru.Altin ? " k-altin" : ""))">@kind</span>}</span>
                                                     <span class="mi">@if (!string.IsNullOrWhiteSpace(r.Note))
                                                         {<button type="button" class="note-info" data-note="@r.Note" aria-label="Notu göster" title="Not">i</button>}</span>
                                                 </div>
