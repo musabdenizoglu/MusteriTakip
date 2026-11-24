@@ -26,16 +26,17 @@ public class CustomersController : Controller
     public async Task<IActionResult> Index(string? q, string? sort)
     {
         var customers = await _ledger.LoadCustomersAsync();
-        var term = (q ?? "").Trim().ToLower(Fmt.Tr);
+        // Arama: ad, kod, telefon, e-posta, son işlem tarihi; virgülle ayrılan terimlerin hepsi geçmeli
         var items = customers
-            .Where(c => term == "" || c.Name.ToLower(Fmt.Tr).Contains(term) || (c.Code ?? "").ToLower(Fmt.Tr).Contains(term)
-                        || (c.Phone ?? "").Replace(" ", "").Contains(term.Replace(" ", "")))
             .Select(c =>
             {
                 var t = LedgerService.CustomerTotals(c);
                 var dates = c.Records.Select(r => r.Date).Concat(c.Payments.Select(p => p.Date)).ToList();
                 return new CustomerListItem { Customer = c, Rest = t.Rest, GoldRest = t.GoldRest, LastDate = dates.Count > 0 ? dates.Max() : null };
-            });
+            })
+            .Where(x => CustomerListItem.MatchesAll(CustomerListItem.SearchText(x), q))
+            .ToList()
+            .AsEnumerable();
         items = sort switch
         {
             "az" => items.OrderBy(x => x.Customer.Name, StringComparer.Create(Fmt.Tr, false)),
@@ -57,9 +58,11 @@ public class CustomersController : Controller
         var customers = await _db.Customers.AsNoTracking()
             .Select(c => new { id = c.Id, name = c.Name, code = c.Code, phone = c.Phone })
             .ToListAsync();
-        var records = await _db.OrderRecords.AsNoTracking()
-            .Select(r => new { id = r.Id, cid = r.CustomerId, model = r.Model, code = r.Code, note = r.Note, date = r.Date, price = r.Price, image = r.ImagePath })
+        var rows = await _db.OrderRecords.AsNoTracking()
+            .Select(r => new { r.Id, r.CustomerId, r.Model, r.Code, r.Note, r.Date, r.EditedAt, r.Price, r.ImagePath })
             .ToListAsync();
+        // edited: değiştirme tarihi, yerel saate çevrilmiş arama metni ("gg.aa.yyyy yyyy-aa-gg")
+        var records = rows.Select(r => new { id = r.Id, cid = r.CustomerId, model = r.Model, code = r.Code, note = r.Note, date = r.Date, edited = Fmt.EditSearch(r.EditedAt), price = r.Price, image = r.ImagePath });
         return Json(new { customers, records });
     }
 

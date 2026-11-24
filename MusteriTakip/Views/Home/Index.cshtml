@@ -53,7 +53,7 @@
         <div id="homeRecentList" data-mode="classic">
             @foreach (var it in Model.Recent)
             {
-                var search = (it.CustName + " " + it.Model + " " + it.Kind + " " + it.Code + " " + it.CustCode + " " + Fmt.Date(it.Date) + " " + it.Date.ToString("yyyy-MM-dd")).ToLower(Fmt.Tr);
+                var search = (it.CustName + " " + it.Model + " " + it.Kind + " " + it.Code + " " + it.CustCode + " " + Fmt.Date(it.Date) + " " + it.Date.ToString("yyyy-MM-dd") + " " + Fmt.EditSearch(it.EditedAt)).ToLower(Fmt.Tr);
                 if (it.Ev == "rec")
                 {
                     <div class="rec-row home-rec-row has-detail" tabindex="0" data-kb="1" role="button" data-s="@search" data-href="@detailsUrl/@it.CustomerId#rec-@it.RecordId">
@@ -108,7 +108,7 @@
                         lastMonth = mo;
                         <li class="tl-month">@Fmt.Month(it.Date.Year, it.Date.Month)</li>
                     }
-                    var search = (it.CustName + " " + it.Model + " " + it.Code + " " + it.Kind + " " + (it.Ev == "exp" ? "gider " : it.Ev == "pay" ? "ödeme " : "") + Fmt.Date(it.Date) + " " + it.Date.ToString("yyyy-MM-dd")).ToLower(Fmt.Tr);
+                    var search = (it.CustName + " " + it.Model + " " + it.Code + " " + it.Kind + " " + (it.Ev == "exp" ? "gider " : it.Ev == "pay" ? "ödeme " : "") + Fmt.Date(it.Date) + " " + it.Date.ToString("yyyy-MM-dd") + " " + Fmt.EditSearch(it.EditedAt)).ToLower(Fmt.Tr);
                     var href = it.Ev == "exp" ? Url.Action("Index", "Expenses") : $"{detailsUrl}/{it.CustomerId}";
                     <li class="tl-item @it.Ev" data-s="@search" data-href="@href">
                         <i class="tl-dot"></i>
@@ -147,8 +147,8 @@
             var inp = document.getElementById('homeRecentSearch'), empty = document.getElementById('homeRecentEmptyNote');
             var classicHtml = list.innerHTML, timelineHtml = tpl.innerHTML;
             function mode() { try { return localStorage.getItem('mt_home_recent') === 'timeline' ? 'timeline' : 'classic'; } catch (e) { return 'classic'; } }
-            // Türkçe karakterlerden bağımsız eşleşme (HTML: norm) — "sinan" yazınca "SİNAN", "sms" yazınca "ŞMS" bulunur
-            function norm(t) { return String(t || '').toLocaleLowerCase('tr-TR').replace(/ı/g, 'i').normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+            // Türkçe küçük harfe çevirir; Türkçe karakterler korunur ("sms" yazınca "ŞMS" bulunmaz)
+            function norm(t) { return String(t || '').toLocaleLowerCase('tr-TR'); }
             function terms() { return norm(inp.value).split(',').map(function (s) { return s.trim(); }).filter(Boolean); }
             function render() {
                 var m = mode(), q = terms();

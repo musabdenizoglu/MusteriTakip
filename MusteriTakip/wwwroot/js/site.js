@@ -323,13 +323,21 @@ window.mtHide = function (el, hide) {
         var data = null, loading = null, items = [], cur = -1;
         var detailsUrl = (form.getAttribute('action') || '/Customers').replace(/\/(Index)?$/, '') + '/Details/';
         function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-        function norm(t) { return String(t == null ? '' : t).toLocaleLowerCase('tr').replace(/ı/g, 'i').normalize('NFD').replace(/[̀-ͯ]/g, ''); }
-        function hl(text, q) {
-            var t = String(text == null ? '' : text); if (!q) return esc(t);
-            var n = norm(t), i = n.indexOf(q); if (i < 0 || n.length !== t.length) return esc(t);
-            return esc(t.slice(0, i)) + '<mark>' + esc(t.slice(i, i + q.length)) + '</mark>' + esc(t.slice(i + q.length));
+        // Türkçe küçük harf; Türkçe karakterler korunur ("sms" yazınca "ŞMS" bulunmaz)
+        function norm(t) { return String(t == null ? '' : t).toLocaleLowerCase('tr-TR'); }
+        // Virgülle ayrılmış terimler; kaydın hepsini içermesi gerekir
+        function terms(v) { return norm(v).split(',').map(function (s) { return s.trim(); }).filter(Boolean); }
+        function hl(text, qs) {
+            var t = String(text == null ? '' : text), n = norm(t);
+            if (n.length !== t.length) return esc(t);
+            for (var k = 0; k < qs.length; k++) {
+                var q = qs[k], i = n.indexOf(q);
+                if (i >= 0) return esc(t.slice(0, i)) + '<mark>' + esc(t.slice(i, i + q.length)) + '</mark>' + esc(t.slice(i + q.length));
+            }
+            return esc(t);
         }
         function fdate(d) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || ''); return m ? m[3] + '.' + m[2] + '.' + m[1] : ''; }
+        function hasAll(hay, qs) { return qs.every(function (q) { return hay.indexOf(q) >= 0 || hay.indexOf(q.replace(/\s/g, '')) >= 0; }); }
         function money(v) { return (Number(v) || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' $'; }
         function load() {
             if (data) return Promise.resolve(data);
@@ -339,20 +347,25 @@ window.mtHide = function (el, hide) {
                 .catch(function (e) { loading = null; throw e; });
             return loading;
         }
-        function search(q) {
+        function search(qs) {
             var cs = [], rs = [];
             data.customers.forEach(function (c) {
-                if (norm(c.name).indexOf(q) >= 0 || norm(c.code).indexOf(q) >= 0 || norm(c.phone).replace(/\s/g, '').indexOf(q.replace(/\s/g, '')) >= 0) cs.push({ type: 'c', c: c });
+                // ad, kod, telefon (boşluklu/boşluksuz)
+                var hay = norm([c.name, c.code, c.phone, String(c.phone || '').replace(/\s/g, '')].join(' '));
+                if (hasAll(hay, qs)) cs.push({ type: 'c', c: c });
             });
             data.records.forEach(function (r) {
-                if (r.c && (norm(r.model).indexOf(q) >= 0 || norm(r.code).indexOf(q) >= 0 || norm(r.note).indexOf(q) >= 0)) rs.push({ type: 'r', c: r.c, r: r });
+                if (!r.c) return;
+                // model, sipariş kodu, not, müşteri adı/kodu, tarih ve değiştirme tarihi (gg.aa.yyyy ve yyyy-aa-gg)
+                var hay = norm([r.model, r.code, r.note, r.c.name, r.c.code, fdate(r.date), r.date, r.edited].join(' '));
+                if (hasAll(hay, qs)) rs.push({ type: 'r', c: r.c, r: r });
             });
             rs.sort(function (a, b) { return (b.r.date || '').localeCompare(a.r.date || '') || b.r.id - a.r.id; });
             return cs.slice(0, 8).concat(rs.slice(0, 14));
         }
         function render() {
-            var q = norm(inp.value.trim());
-            if (!q) { pop.hidden = true; items = []; return; }
+            var q = terms(inp.value);
+            if (!q.length) { pop.hidden = true; items = []; return; }
             if (!data) { load().then(render, function () { pop.innerHTML = '<div class="gs-empty">Arama verisi yüklenemedi.</div>'; pop.hidden = false; }); return; }
             items = search(q); cur = items.length ? 0 : -1;
             if (!items.length) { pop.innerHTML = '<div class="gs-empty">Sonuç bulunamadı.</div>'; pop.hidden = false; return; }
@@ -365,7 +378,7 @@ window.mtHide = function (el, hide) {
                 } else {
                     var r = it.r;
                     h += '<div class="gs-it" data-i="' + i + '">' + (r.image ? '<img src="' + esc(r.image) + '" alt="">' : '<span class="gs-ph"></span>') +
-                        '<span class="gs-t"><b>' + hl(r.model || '(isimsiz)', q) + (r.code ? ' · ' + hl(r.code, q) : '') + '</b><small>' + esc(it.c.name) + ' · ' + fdate(r.date) + (r.price != null ? ' · ' + money(r.price) : '') + '</small></span></div>';
+                        '<span class="gs-t"><b>' + hl(r.model || '(isimsiz)', q) + (r.code ? ' · ' + hl(r.code, q) : '') + '</b><small>' + hl(it.c.name, q) + ' · ' + hl(fdate(r.date), q) + (r.price != null ? ' · ' + money(r.price) : '') + '</small></span></div>';
                 }
             });
             pop.innerHTML = h; pop.hidden = false; mark();

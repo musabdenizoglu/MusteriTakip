@@ -34,7 +34,7 @@
     var key = type + ":" + m.Id;
     var detailsUrl = m.CustomerId != null ? Url.Action("Details", "Customers", new { id = m.CustomerId }) : null;
     var rowHref = type == "expense" ? Url.Action("Index", "Expenses") : detailsUrl;
-    var search = string.Join(" ", new[] { m.CustomerName, descMain, descSub, descPlain, kindTxt, x?.Note, x != null ? LedgerService.ExpenseLabel(x) : null, r?.Code, Fmt.Date(m.Date), m.Date.ToString("yyyy-MM-dd"), type == "payment" ? "ödeme" : (type == "expense" ? "gider" : "borç") }.Where(s => !string.IsNullOrWhiteSpace(s))).ToLower(Fmt.Tr);
+    var search = string.Join(" ", new[] { m.CustomerName, descMain, descSub, descPlain, kindTxt, x?.Note, x != null ? LedgerService.ExpenseLabel(x) : null, r?.Code, Fmt.Date(m.Date), m.Date.ToString("yyyy-MM-dd"), Fmt.EditSearch(m.EditedAt), type == "payment" ? "ödeme" : (type == "expense" ? "gider" : "borç") }.Where(s => !string.IsNullOrWhiteSpace(s))).ToLower(Fmt.Tr);
 }
 <div class="hist-row@(kasa ? " kasa-row" : "") kr-@type" @(kasa ? Html.Raw("tabindex=\"0\" data-kb=\"1\" role=\"button\"") : null) data-s="@search" data-d="@m.Date.ToString("yyyy-MM-dd")" data-href="@(kasa ? rowHref : null)">
     @if (type != "expense")

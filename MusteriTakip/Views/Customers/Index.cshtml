@@ -11,7 +11,7 @@
             <span><a class="btn secondary trash-chip" id="trashGoBtn" asp-controller="Trash" asp-action="Index" title="Çöp kutusu (son 30 gün)" aria-label="Çöp kutusu (son 30 gün)">🗑 Çöp Kutusu <span class="count-pill" id="trashCnt">@(Model.TrashCount > 0 ? Model.TrashCount.ToString() : "")</span></a> <a class="btn save-record" id="custNewBtn" data-modal asp-action="Create">+ Yeni Müşteri</a></span>
         </div>
         <form method="get" class="cust-sort-row" id="custSortForm">
-            <input type="text" class="search" id="custSearch" name="q" value="@Model.Search" placeholder="Müşteri adıyla ara…" aria-label="Müşteri ara" autocomplete="off">
+            <input type="text" class="search" id="custSearch" name="q" value="@Model.Search" placeholder="Ad, kod, telefon veya tarih…" title="Virgülle birden fazla arama yapabilirsiniz" aria-label="Müşteri ara" autocomplete="off">
             <select id="custSort" name="sort" aria-label="Sıralama" onchange="this.form.submit()">
                 <option value="" selected="@(string.IsNullOrEmpty(Model.Sort))">Sıralama: varsayılan</option>
                 <option value="az" selected="@(Model.Sort == "az")">A → Z</option>
@@ -24,7 +24,7 @@
             @foreach (var it in Model.Items)
             {
                 var c = it.Customer;
-                <li tabindex="0" data-kb="1" role="button" data-href="@Url.Action("Details", new { id = c.Id })" data-name="@c.Name.ToLower(Fmt.Tr)">
+                <li tabindex="0" data-kb="1" role="button" data-href="@Url.Action("Details", new { id = c.Id })" data-s="@CustomerListItem.SearchText(it)">
                     <div class="info">
                         <span class="avatar">@if (c.ImagePath != null)
                             {<img src="@c.ImagePath" alt="">}
@@ -73,8 +73,12 @@
                 note.style.display = shown ? 'none' : '';
             }
             inp.addEventListener('input', function () {
-                var t = inp.value.trim().toLocaleLowerCase('tr-TR');
-                ul.querySelectorAll('li').forEach(function (li) { mtHide(li, t !== '' && li.dataset.name.indexOf(t) < 0); });
+                // Ad, müşteri kodu, telefon, e-posta, son işlem tarihi; virgülle ayrılan terimlerin hepsi aranır
+                var q = inp.value.toLocaleLowerCase('tr-TR').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+                ul.querySelectorAll('li[data-s]').forEach(function (li) {
+                    var s = li.dataset.s;
+                    mtHide(li, !q.every(function (t) { return s.indexOf(t) >= 0 || s.indexOf(t.replace(/\s/g, '')) >= 0; }));
+                });
                 syncEmpty();
             });
             syncEmpty();

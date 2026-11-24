@@ -86,6 +86,29 @@ public class CustomerListItem
     public decimal Rest { get; set; }
     public decimal GoldRest { get; set; }
     public DateOnly? LastDate { get; set; }
+
+    /// <summary>Müşteriler listesi araması için metin: ad, kod, telefon (boşluklu/boşluksuz), e-posta,
+    /// son işlem tarihi (gg.aa.yyyy ve yyyy-aa-gg). Türkçe küçük harf; Türkçe karakterler korunur.</summary>
+    public static string SearchText(CustomerListItem it)
+    {
+        var c = it.Customer;
+        var parts = new[]
+        {
+            c.Name, c.Code, c.Phone, c.Phone?.Replace(" ", ""), c.Email,
+            it.LastDate is { } d ? d.ToString("dd.MM.yyyy") : null,
+            it.LastDate is { } d2 ? d2.ToString("yyyy-MM-dd") : null,
+            // Düzenlenmiş siparişi olan müşteri: "düzenlenen / değiştirilen" yazınca listelenir
+            c.Records.Any(r => r.EditedAt != null) ? "düzenlenen düzenlenmiş düzenlendi değiştirilen değiştirilmiş değiştirildi" : null,
+        };
+        return string.Join(" ", parts.Where(s => !string.IsNullOrWhiteSpace(s))).ToLower(Helpers.Fmt.Tr);
+    }
+
+    /// <summary>Virgülle ayrılmış terimlerin hepsi metinde geçiyor mu (boşluksuz hali de denenir).</summary>
+    public static bool MatchesAll(string text, string? query)
+    {
+        var terms = (query ?? "").ToLower(Helpers.Fmt.Tr).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        return terms.All(t => text.Contains(t) || text.Contains(t.Replace(" ", "")));
+    }
 }
 
 public class CustomerListVm

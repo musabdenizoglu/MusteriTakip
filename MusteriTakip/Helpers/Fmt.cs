@@ -16,6 +16,13 @@ public static class Fmt
     public static string Rate(decimal? v) => v.HasValue && v > 0 ? v.Value.ToString("0.####", Tr) + " ₺" : "—";
     public static string Date(DateOnly d) => d.ToString("dd.MM.yyyy", Tr);
     public static string Date(DateOnly? d) => d.HasValue ? Date(d.Value) : "—";
+    /// <summary>Arama metni için değiştirme bilgisi: tarih (yerel saat, "gg.aa.yyyy yyyy-aa-gg") ve
+    /// "düzenlenen / değiştirilen" sözcükleri — aramaya bunlar yazılınca düzenlenmiş siparişler listelenir. Yoksa boş.</summary>
+    public static string EditSearch(DateTime? ed) =>
+        ed is { } e
+            ? e.ToLocalTime().ToString("dd.MM.yyyy", Tr) + " " + e.ToLocalTime().ToString("yyyy-MM-dd", Tr)
+              + " düzenlenen düzenlenmiş düzenlendi değiştirilen değiştirilmiş değiştirildi"
+            : "";
     public static string Month(int year, int month) => new DateTime(year, month, 1).ToString("MMMM yyyy", Tr);
     public static string MonthShort(int month) => new DateTime(2000, month, 1).ToString("MMM", Tr);
 

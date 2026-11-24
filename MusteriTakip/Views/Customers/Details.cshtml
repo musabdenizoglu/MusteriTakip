@@ -140,7 +140,7 @@
                         {
                             var gc = Ui.GoldCalc(r);
                             var kind = Fmt.KindText(r.Kind);
-                            var s = (r.Model + " " + r.Code + " " + kind + " " + Fmt.Date(r.Date) + " " + r.Date.ToString("yyyy-MM-dd")).ToLower(Fmt.Tr);
+                            var s = (r.Model + " " + r.Code + " " + kind + " " + Fmt.Date(r.Date) + " " + r.Date.ToString("yyyy-MM-dd") + " " + Fmt.EditSearch(r.EditedAt)).ToLower(Fmt.Tr);
                             <div class="rec-row has-detail" id="rec-@r.Id" data-s="@s">
                                 <label class="hsel hsel-cell"><input type="checkbox" class="hsel-box" data-key="price:@r.Id" data-id="@r.Id" data-img="@r.ImagePath" aria-label="Siparişi seç"></label>
                                 @if (r.EditedAt is { } ed)
