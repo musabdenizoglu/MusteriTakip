@@ -13,7 +13,30 @@ public class Movement
     public MovementType Type { get; set; }
     public int Id { get; set; }
     public DateOnly Date { get; set; }
+    /// <summary>Eklenme anı (UTC).</summary>
     public DateTime CreatedAt { get; set; }
+    /// <summary>"En üste taşı" ile onaylanan düzenleme anı (yoksa null).</summary>
+    public DateTime? BumpedAt { get; set; }
+    /// <summary>Son değiştirilme anı (tarih sütununda ✎ ile gösterilir).</summary>
+    public DateTime? EditedAt { get; set; }
+
+    /// <summary>Kasa sırası (HTML: recordCreatedAt): eklenme anı; "en üste taşı" seçildiyse daha yeni olan o an.</summary>
+    public DateTime KasaSortAt => BumpedAt is { } b && b > CreatedAt ? b : CreatedAt;
+
+    /// <summary>
+    /// Hesap hareketleri sırası: kayıt tarihi + eklenme saati; "en üste taşı" seçildiyse o an daha yeniyse o an.
+    /// </summary>
+    public DateTime HistSortAt
+    {
+        get
+        {
+            var created = CreatedAt.Kind == DateTimeKind.Local ? CreatedAt : DateTime.SpecifyKind(CreatedAt, DateTimeKind.Utc).ToLocalTime();
+            var normal = Date.ToDateTime(TimeOnly.FromDateTime(created));
+            if (BumpedAt is not { } b) return normal;
+            var bl = DateTime.SpecifyKind(b, DateTimeKind.Utc).ToLocalTime();
+            return bl > normal ? bl : normal;
+        }
+    }
     public int? CustomerId { get; set; }
     public string CustomerName { get; set; } = "";
     public string? Code { get; set; }
@@ -252,7 +275,7 @@ public class LedgerService
                     Type = r.IsDebt ? MovementType.Debt : MovementType.Order,
                     Id = r.Id,
                     Date = r.Date,
-                    CreatedAt = r.EditedAt ?? r.CreatedAt,
+                    CreatedAt = r.CreatedAt, BumpedAt = r.UpdatedAt, EditedAt = r.EditedAt,
                     CustomerId = c.Id,
                     CustomerName = c.Name,
                     Code = r.Code,
@@ -308,7 +331,7 @@ public class LedgerService
                 });
             }
         }
-        return list.OrderByDescending(m => m.Date).ThenByDescending(m => m.CreatedAt).ToList();
+        return list.OrderByDescending(m => m.HistSortAt).ThenByDescending(m => m.KasaSortAt).ToList();
     }
 
     /// <summary>Dolar hesabı ekstresi: devreden bakiye + dönem hareketleri + yürüyen bakiye.</summary>

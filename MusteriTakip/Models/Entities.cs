@@ -117,6 +117,10 @@ public class OrderRecord : ISoftDelete
     [MaxLength(2000)]
     public string? Note { get; set; }
 
+    /// <summary>Sipariş düzenlenirken girilen ikinci not (bilgi balonunda ve resim altında ayrıca gösterilir).</summary>
+    [MaxLength(2000)]
+    public string? EditNote { get; set; }
+
     [MaxLength(260)]
     public string? ImagePath { get; set; }
 
@@ -136,6 +140,8 @@ public class OrderRecord : ISoftDelete
 
     public DateTime CreatedAt { get; set; }
     public DateTime? EditedAt { get; set; }
+    /// <summary>Kasa sıralaması için: düzenlemede "en üste taşı" seçildiği an (yoksa CreatedAt kullanılır).</summary>
+    public DateTime? UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
 
     public List<OrderExpense> Expenses { get; set; } = new();

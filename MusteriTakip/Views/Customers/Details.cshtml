@@ -129,6 +129,10 @@
                     <div id="recSelBar" class="hist-selbar">
                         <label class="hsel"><input type="checkbox" id="recSelAll" aria-label="Tümünü seç"> <span>Tümünü seç</span></label>
                         <span id="recSelCnt" class="hsel-cnt"></span>
+                        <button type="button" class="btn secondary sm" id="recSelCollage" style="display:none">Kolaj yap</button>
+                        <button type="button" class="btn secondary sm" id="recSelClear" style="display:none">Seçimi temizle</button>
+                        <button type="button" class="btn secondary sm" id="recSelDel" style="display:none">Seçilenleri sil</button>
+                        <form method="post" asp-controller="Orders" asp-action="DeleteMany" asp-route-customerId="@c.Id" asp-route-returnUrl="@here" id="recSelDelForm" hidden></form>
                         <div class="hs-filter"><input type="text" id="recSearch" placeholder="Model, kod, tarih, tür…" aria-label="Ara" title="Virgülle birden fazla arama yapabilirsiniz" autocomplete="off"></div>
                     </div>
                     <div id="recordsList">
@@ -138,9 +142,16 @@
                             var kind = Fmt.KindText(r.Kind);
                             var s = (r.Model + " " + r.Code + " " + kind + " " + Fmt.Date(r.Date) + " " + r.Date.ToString("yyyy-MM-dd")).ToLower(Fmt.Tr);
                             <div class="rec-row has-detail" id="rec-@r.Id" data-s="@s">
-                                <label class="hsel hsel-cell"><input type="checkbox" class="hsel-box" data-key="price:@r.Id" aria-label="Siparişi seç"></label>
-                                <div class="rec-date0">@Fmt.Date(r.Date)</div>
-                                <div class="thumb@(r.ImagePath != null ? " clickable" : "")" data-note="@r.Note">@if (r.ImagePath != null)
+                                <label class="hsel hsel-cell"><input type="checkbox" class="hsel-box" data-key="price:@r.Id" data-id="@r.Id" data-img="@r.ImagePath" aria-label="Siparişi seç"></label>
+                                @if (r.EditedAt is { } ed)
+                                {
+                                    <div class="rec-date0 has-ed"><span title="Değiştirilme tarihi">@ed.ToLocalTime().ToString("dd.MM.yyyy")</span><small class="ed" title="Önceki tarih">✎ @Fmt.Date(r.Date)</small></div>
+                                }
+                                else
+                                {
+                                    <div class="rec-date0">@Fmt.Date(r.Date)</div>
+                                }
+                                <div class="thumb@(r.ImagePath != null ? " clickable" : "")" data-note="@r.Note" data-note2="@r.EditNote">@if (r.ImagePath != null)
                                     {<img src="@r.ImagePath" alt="" data-zoom data-caption="@(r.Code + " · " + r.Model)">}
                                     else
                                     {@Html.Raw(Ui.PhRing)}</div>
@@ -156,8 +167,8 @@
                                                     <span class="mname" title="@r.Model">@r.Model</span>
                                                     <span class="mk">@if (kind != "")
                                                         {<span class="kind-tag@(r.Kind == IslemTuru.Kalip ? " k-kalip" : (r.Kind == IslemTuru.Altin ? " k-altin" : ""))">@kind</span>}</span>
-                                                    <span class="mi">@if (!string.IsNullOrWhiteSpace(r.Note))
-                                                        {<button type="button" class="note-info" data-note="@r.Note" aria-label="Notu göster" title="Not">i</button>}</span>
+                                                    <span class="mi">@if (!string.IsNullOrWhiteSpace(r.Note) || !string.IsNullOrWhiteSpace(r.EditNote))
+                                                        {<button type="button" class="note-info" data-note="@r.Note" data-note2="@r.EditNote" aria-label="Notu göster" title="Not">i</button>}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -221,6 +232,13 @@
     <div class="yn-stats" id="fxStats"></div>
     <div class="yn-wrap"><table class="yn-tbl"><thead><tr><th>Müşteri</th><th class="r">Açık borç</th><th class="r">Kayıt günü kuru</th><th class="r">Kayıt günü ₺</th><th class="r">Bugün ₺</th><th class="r">Fark</th></tr></thead><tbody id="fxBody"></tbody></table></div>
     <p class="yn-note">Açık dolar borcunun TL karşılığı: kayıtların yapıldığı günkü kurla (ağırlıklı ortalama) ve bugünkü kurla. Kur yükseldiyse alacağınızın TL değeri artmıştır. Kayıt günü kuru olmayan eski kayıtlar hesaba katılmaz.</p>
+</div></div>
+
+@* ---------- Kolaj önizleme (HTML: #collagePrev) ---------- *@
+<div class="confirm-modal" id="collagePrev" data-name="@c.Name" data-phone="@Fmt.WaPhone(c.Phone)"><div class="confirm-card" role="dialog" aria-label="Kolaj önizleme" style="max-width:760px;width:94vw;max-height:92vh;display:flex;flex-direction:column;gap:10px;">
+    <h2 style="margin:0;">Kolaj önizleme (JPG)</h2>
+    <div style="overflow:auto;flex:1;min-height:0;text-align:center;"><img id="collagePrevImg" alt="Kolaj" style="max-width:100%;height:auto;border:1px solid var(--line);border-radius:8px;"></div>
+    <div class="confirm-actions"><button type="button" class="btn secondary" id="collagePrevClose">Kapat</button><button type="button" class="btn" id="collagePrevSave">Kaydet (.JPG)</button><button type="button" class="btn" id="collagePrevShare">WhatsApp'ta paylaş</button></div>
 </div></div>
 
 @section Scripts {
@@ -307,9 +325,72 @@
                     var boxes = list.querySelectorAll('.hsel-box'), n = list.querySelectorAll('.hsel-box:checked').length;
                     all.checked = boxes.length > 0 && n === boxes.length; all.indeterminate = n > 0 && !all.checked;
                     cnt.textContent = n ? n + ' kayıt seçili' : '';
+                    if (x[0] === 'recSelAll') ['recSelCollage', 'recSelClear', 'recSelDel'].forEach(function (id) { $(id).style.display = n ? '' : 'none'; });
                 }
                 all.addEventListener('change', function () { list.querySelectorAll('.hsel-box').forEach(function (b) { if (!b.closest('[hidden]')) b.checked = all.checked; }); upd(); });
                 list.addEventListener('change', function (e) { if (e.target.classList.contains('hsel-box')) upd(); });
+                if (x[0] === 'recSelAll') {
+                    $('recSelClear').addEventListener('click', function () { list.querySelectorAll('.hsel-box').forEach(function (b) { b.checked = false; }); upd(); });
+                    $('recSelDel').addEventListener('click', function () {
+                        var sel = list.querySelectorAll('.hsel-box:checked'); if (!sel.length) return;
+                        var f = $('recSelDelForm');
+                        f.querySelectorAll('input[name="ids"]').forEach(function (i) { i.remove(); });
+                        sel.forEach(function (b) { var i = document.createElement('input'); i.type = 'hidden'; i.name = 'ids'; i.value = b.dataset.id; f.appendChild(i); });
+                        f.dataset.confirm = 'Seçili ' + sel.length + ' kaydı silmek istediğinize emin misiniz? 30 gün içinde Ayarlar → Çöp Kutusu\'ndan geri alabilirsiniz.';
+                        f.requestSubmit();
+                    });
+                    $('recSelCollage').addEventListener('click', function () {
+                        var srcs = []; list.querySelectorAll('.hsel-box:checked').forEach(function (b) { if (b.dataset.img) srcs.push(b.dataset.img); });
+                        makeCollage(srcs);
+                    });
+                }
+            });
+            // ---- Kolaj (A6 dikey, 300 dpi JPG) ----
+            var cp = $('collagePrev');
+            function loadImg(src) { return new Promise(function (res) { var im = new Image(); im.onload = function () { res(im); }; im.onerror = function () { res(null); }; im.src = src; }); }
+            function todayStr() { var d = new Date(), p = function (v) { return (v < 10 ? '0' : '') + v; }; return p(d.getDate()) + '.' + p(d.getMonth() + 1) + '.' + d.getFullYear(); }
+            function saveBlob(name, blob) { var a = document.createElement('a'), u = URL.createObjectURL(blob); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 4000); }
+            async function makeCollage(srcs) {
+                if (!srcs.length) { alert('Seçili siparişlerde model resmi yok.'); return; }
+                var imgs = (await Promise.all(srcs.map(loadImg))).filter(Boolean), n = imgs.length;
+                if (!n) { alert('Resimler okunamadı.'); return; }
+                var W = 1240, H = 1748, PAD = 16, best = null;
+                // Resimleri sayfaya en büyük sığdıran sütun/satır sayısı seçilir
+                for (var cols = 1; cols <= n; cols++) {
+                    var rows = Math.ceil(n / cols), cw = (W - 2 * PAD) / cols, ch = (H - 2 * PAD) / rows, area = 0;
+                    imgs.forEach(function (im) { var k = Math.min((cw - 2.2 * PAD) / im.naturalWidth, (ch - 2.2 * PAD) / im.naturalHeight); area += im.naturalWidth * k * im.naturalHeight * k; });
+                    if (!best || area > best.area * 1.02) best = { cols: cols, rows: rows, area: area };
+                }
+                var C = best.cols, R = best.rows, CW = (W - 2 * PAD) / C, CH = (H - 2 * PAD) / R;
+                var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+                var g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.imageSmoothingQuality = 'high';
+                imgs.forEach(function (im, i) {
+                    var row = Math.floor(i / C), col = i % C, inRow = row === R - 1 ? n - row * C : C; // son satır eksikse ortala
+                    var x0 = PAD + col * CW + (C - inRow) * CW / 2, y0 = PAD + row * CH;
+                    g.strokeStyle = '#e3e3e3'; g.lineWidth = 2; g.strokeRect(x0 + PAD / 2, y0 + PAD / 2, CW - PAD, CH - PAD);
+                    var k = Math.min((CW - 2.2 * PAD) / im.naturalWidth, (CH - 2.2 * PAD) / im.naturalHeight), dw = im.naturalWidth * k, dh = im.naturalHeight * k;
+                    g.drawImage(im, x0 + (CW - dw) / 2, y0 + (CH - dh) / 2, dw, dh);
+                });
+                cv.toBlob(function (blob) {
+                    if (!blob) { alert('Kolaj oluşturulamadı.'); return; }
+                    if (cp._url) URL.revokeObjectURL(cp._url);
+                    cp._blob = blob; cp._name = 'Kolaj ' + cp.dataset.name + ' ' + todayStr() + '.jpg'; cp._url = URL.createObjectURL(blob);
+                    $('collagePrevImg').src = cp._url; cp.classList.add('open');
+                }, 'image/jpeg', 0.92);
+            }
+            function closeCp() { cp.classList.remove('open'); if (cp._url) { URL.revokeObjectURL(cp._url); cp._url = null; } $('collagePrevImg').removeAttribute('src'); }
+            $('collagePrevClose').addEventListener('click', closeCp);
+            cp.addEventListener('click', function (e) { if (e.target === cp) closeCp(); });
+            $('collagePrevSave').addEventListener('click', function () { if (cp._blob) saveBlob(cp._name, cp._blob); });
+            $('collagePrevShare').addEventListener('click', async function () {
+                if (!cp._blob) return;
+                try {
+                    var file = new File([cp._blob], cp._name, { type: 'image/jpeg' });
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); return; }
+                } catch (e) { if (e && e.name === 'AbortError') return; }
+                saveBlob(cp._name, cp._blob);
+                window.open('https://wa.me/' + cp.dataset.phone, '_blank');
+                alert('Kolaj kaydedildi. WhatsApp sohbetinde ataç (📎) ile ekleyip gönderin.');
             });
             // Ana sayfadan bir siparişe gelindiyse onu göster
             if (location.hash && location.hash.indexOf('#rec-') === 0) {

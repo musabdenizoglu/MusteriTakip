@@ -91,7 +91,14 @@
             else
             {<span class="desc-empty"></span>}</span>
     }
-    <span class="hist-date">@Fmt.Date(m.Date)</span>
+    @if (m.EditedAt is { } ed)
+    {
+        <span class="hist-date has-ed"><span title="Değiştirilme tarihi">@ed.ToLocalTime().ToString("dd.MM.yyyy")</span><small class="ed" title="Önceki tarih">✎ @Fmt.Date(m.Date)</small></span>
+    }
+    else
+    {
+        <span class="hist-date">@Fmt.Date(m.Date)</span>
+    }
     <span class="hist-amount">@if (m.MissingRate)
         {<span class="usd-missing">kur girilmedi</span>}
         else

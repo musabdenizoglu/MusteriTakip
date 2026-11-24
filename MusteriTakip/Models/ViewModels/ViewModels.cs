@@ -61,8 +61,11 @@ public class RecentItem
     public DateOnly Date { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? EditedAt { get; set; }
+    /// <summary>Liste sırası: eklenme anı; "en üste taşı" seçildiyse daha yeni olan o an.</summary>
+    public DateTime SortAt { get; set; }
     public string? Image { get; set; }
     public string? Note { get; set; }
+    public string? EditNote { get; set; }
     public string Code { get; set; } = "";
     public string CodeCls { get; set; } = "";
     public string CustCode { get; set; } = "";
@@ -172,6 +175,12 @@ public class OrderFormVm
     public decimal? Price { get; set; }
     [MaxLength(2000)] public string? Note { get; set; }
     public List<OrderExpenseVm> Expenses { get; set; } = new();
+
+    /// <summary>Düzenleme notu: yalnızca sipariş düzenlenirken girilir.</summary>
+    [MaxLength(2000)] public string? EditNote { get; set; }
+
+    /// <summary>Düzenlemede "Evet, en üste taşı" seçildiyse kayıt Kasa listesinde en üste çıkar.</summary>
+    public bool Bump { get; set; }
 
     public string? ImageData { get; set; }
     public string? ExistingImage { get; set; }

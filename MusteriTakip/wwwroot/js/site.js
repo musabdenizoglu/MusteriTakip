@@ -400,6 +400,43 @@ window.mtHide = function (el, hide) {
         });
     });
 
+    // ---------------- Soru kartı (HTML: showConfirm / #confirmModal) ----------------
+    // mtAsk(mesaj, { okLabel, cancelLabel, onOk, onCancel }) — boş alana tıklama / Esc yalnızca kartı kapatır.
+    window.mtAsk = function (msg, o) {
+        o = o || {};
+        var m = document.getElementById('mtAskModal');
+        if (!m) {
+            m = document.createElement('div'); m.className = 'confirm-modal'; m.id = 'mtAskModal';
+            m.innerHTML = '<div class="confirm-card" role="dialog" aria-modal="true"><p id="mtAskMsg"></p><div class="confirm-actions">'
+                + '<button class="btn secondary" id="mtAskNo" type="button"></button><button class="btn save-record" id="mtAskOk" type="button"></button></div></div>';
+            m.addEventListener('click', function (e) { if (e.target === m) m.__close(); });
+            window.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && m.classList.contains('open')) { e.preventDefault(); e.stopImmediatePropagation(); m.__close(); }
+            }, true);
+        }
+        document.body.appendChild(m); // açık pencerelerin üstünde dursun
+        m.querySelector('#mtAskMsg').textContent = msg;
+        var ok = m.querySelector('#mtAskOk'), no = m.querySelector('#mtAskNo');
+        ok.textContent = o.okLabel || 'Tamam'; no.textContent = o.cancelLabel || 'Vazgeç';
+        m.__close = function () { m.classList.remove('open'); };
+        ok.onclick = function () { m.__close(); if (o.onOk) o.onOk(); };
+        no.onclick = function () { m.__close(); if (o.onCancel) o.onCancel(); };
+        m.classList.add('open');
+        setTimeout(function () { ok.focus(); }, 30);
+    };
+
+    // Sipariş düzenlemesi kaydedilirken: Kasa listesinde en üste taşınsın mı?
+    document.addEventListener('submit', function (e) {
+        var f = e.target;
+        if (!f.dataset || !f.dataset.bumpAsk || f.__bumpAsked) return;
+        e.preventDefault(); e.stopPropagation();
+        var go = function (v) { f.querySelector('[name="Bump"]').value = v ? 'true' : 'false'; f.__bumpAsked = true; f.requestSubmit(); };
+        mtAsk('Güncellenen kayıt Kasa listesinde en üste taşınsın mı?', {
+            okLabel: 'Evet, en üste taşı', cancelLabel: 'Hayır, yerinde kalsın',
+            onOk: function () { go(true); }, onCancel: function () { go(false); }
+        });
+    }, true);
+
     // ---------------- Onay soran formlar ----------------
     document.addEventListener('submit', function (e) {
         var f = e.target;
@@ -409,6 +446,14 @@ window.mtHide = function (el, hide) {
             if (cb && cb.checked && !window.confirm(f.dataset.confirmText || 'Emin misiniz?')) e.preventDefault();
         }
     }, true);
+
+    // Düzenleme notu: başlık + metin (ikinci balon / resim altındaki ikinci not)
+    function mtNote2(el, text) {
+        el.innerHTML = '';
+        var h = document.createElement('b'); h.className = 'n2-h'; h.textContent = '✎ Düzenleme notu';
+        var t = document.createElement('div'); t.textContent = text;
+        el.appendChild(h); el.appendChild(t);
+    }
 
     // ---------------- Resim büyütme ----------------
     // Ortada açılır; altında sipariş notu. Tekerlek = yakınlaştır/uzaklaştır, sol tuşla sürükle = gezin, çift tık = sıfırla
@@ -450,9 +495,10 @@ window.mtHide = function (el, hide) {
             tZoom = Math.min(Math.max(z, 1), 6); zAx = x; zAy = y;
             if (!zAnim) zAnim = requestAnimationFrame(zoomStep);
         }
-        function openImg(src, note) {
+        function openImg(src, note, note2) {
             cap.innerHTML = '';
             if (note) { var d = document.createElement('div'); d.className = 'mc-note'; d.textContent = note; cap.appendChild(d); }
+            if (note2) { var d2 = document.createElement('div'); d2.className = 'mc-note mc-note2'; mtNote2(d2, note2); cap.appendChild(d2); }
             stopAnim(); imgZoom = tZoom = 1; mImg.style.width = ''; mImg.style.height = '';
             mImg.onload = function () { imgBase = fitBase(); imgZoom = 1; applyZoom(); };
             mImg.src = src;
@@ -467,7 +513,7 @@ window.mtHide = function (el, hide) {
             var img = e.target.closest('[data-zoom]');
             if (!img) return;
             var th = img.closest('.thumb');
-            openImg(img.src, (th && th.dataset.note || '').trim());
+            openImg(img.src, (th && th.dataset.note || '').trim(), (th && th.dataset.note2 || '').trim());
         });
         modal.addEventListener('click', function (e) {
             if (e.target === modal || e.target.classList.contains('modal-inner') || e.target.closest('.modal-close')) closeImg();
@@ -507,12 +553,15 @@ window.mtHide = function (el, hide) {
     // (i) işaretine tıklanınca hemen altında açılır; ✕, Esc, kaydırma ya da boş yere tıklayınca kapanır
     var notePop = $('#notePop');
     if (notePop) {
-        var npBtn = null;
-        function hideNote() { notePop.hidden = true; if (npBtn) npBtn.classList.remove('on'); npBtn = null; }
+        var npBtn = null, notePop2 = $('#notePop2');
+        function hideNote() { notePop.hidden = true; if (notePop2) notePop2.hidden = true; if (npBtn) npBtn.classList.remove('on'); npBtn = null; }
         function showNote(btn) {
             if (npBtn && npBtn !== btn) npBtn.classList.remove('on');
             npBtn = btn; btn.classList.add('on');
-            $('#notePopText').textContent = btn.dataset.note || '';
+            var n1 = (btn.dataset.note || '').trim(), n2 = (btn.dataset.note2 || '').trim();
+            // Yalnız düzenleme notu varsa ilk balonda o gösterilir; ikisi de varsa ikinci balon altında açılır
+            if (n1) $('#notePopText').textContent = n1; else mtNote2($('#notePopText'), n2);
+            if (notePop2) notePop2.hidden = true;
             notePop.classList.add('pinned');
             notePop.hidden = false; notePop.classList.remove('up');
             var r = btn.getBoundingClientRect(), pw = notePop.offsetWidth, ph = notePop.offsetHeight;
@@ -521,11 +570,17 @@ window.mtHide = function (el, hide) {
             if (top + ph > window.innerHeight - 8) { top = r.top - ph - 10; notePop.classList.add('up'); }
             notePop.style.left = left + 'px'; notePop.style.top = top + 'px';
             notePop.style.setProperty('--ax', Math.max(10, Math.min(pw - 22, r.left + r.width / 2 - left - 6)) + 'px');
+            if (n1 && n2 && notePop2) {
+                mtNote2(notePop2, n2); notePop2.hidden = false;
+                var p2h = notePop2.offsetHeight, p2w = notePop2.offsetWidth;
+                var t2 = notePop.classList.contains('up') ? top - p2h - 8 : top + ph + 8;
+                notePop2.style.left = Math.min(left, window.innerWidth - p2w - 8) + 'px'; notePop2.style.top = Math.max(8, t2) + 'px';
+            }
         }
         document.addEventListener('click', function (e) {
             var b = e.target.closest('.note-info');
             if (b) { e.preventDefault(); e.stopPropagation(); if (npBtn === b && !notePop.hidden) hideNote(); else showNote(b); return; }
-            if (e.target.closest('#notePop') && !e.target.closest('#notePopX')) return;
+            if (e.target.closest('#notePop, #notePop2') && !e.target.closest('#notePopX')) return;
             if (!notePop.hidden) hideNote();
         }, true);
         document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !notePop.hidden) hideNote(); });
@@ -536,21 +591,31 @@ window.mtHide = function (el, hide) {
     // Model resminin üzerinde: not, fare imlecinin altında balonda belirir ve imleçle hareket eder; resimden çıkınca kaybolur
     var noteFollow = $('#noteFollow');
     if (noteFollow) {
-        var NF_SEL = '#recordsList .thumb[data-note], #homeRecentList .thumb[data-note]';
-        function nfThumb(el) { var t = el && el.closest && el.closest(NF_SEL); return t && t.dataset.note.trim() ? t : null; }
+        var NF_SEL = ':is(#recordsList, #homeRecentList) .thumb:is([data-note], [data-note2])', nf2 = $('#noteFollow2');
+        var n1Of = function (t) { return (t.dataset.note || '').trim(); }, n2Of = function (t) { return (t.dataset.note2 || '').trim(); };
+        function nfThumb(el) { var t = el && el.closest && el.closest(NF_SEL); return t && (n1Of(t) || n2Of(t)) ? t : null; }
+        function nfHide() { noteFollow.hidden = true; if (nf2) nf2.hidden = true; }
         document.addEventListener('mousemove', function (e) {
             var t = nfThumb(e.target);
-            if (!t || modal && modal.classList.contains('open')) { if (!noteFollow.hidden) noteFollow.hidden = true; return; }
-            if (noteFollow.hidden || noteFollow.dataset.for !== t.dataset.note) { noteFollow.textContent = t.dataset.note; noteFollow.dataset.for = t.dataset.note; noteFollow.hidden = false; }
-            var w = noteFollow.offsetWidth, h = noteFollow.offsetHeight;
+            if (!t || modal && modal.classList.contains('open')) { if (!noteFollow.hidden) nfHide(); return; }
+            var a = n1Of(t), b = n2Of(t), key = a + '\u0001' + b;
+            if (noteFollow.hidden || noteFollow.dataset.for !== key) {
+                // Not yoksa ilk balonda düzenleme notu; ikisi de varsa düzenleme notu ikinci balonda
+                if (a) noteFollow.textContent = a; else mtNote2(noteFollow, b);
+                noteFollow.dataset.for = key; noteFollow.hidden = false;
+                if (nf2) { if (a && b) { mtNote2(nf2, b); nf2.hidden = false; } else nf2.hidden = true; }
+            }
+            var two = nf2 && !nf2.hidden;
+            var w = Math.max(noteFollow.offsetWidth, two ? nf2.offsetWidth : 0), h1 = noteFollow.offsetHeight, h = h1 + (two ? nf2.offsetHeight + 6 : 0);
             var x = e.clientX + 14, y = e.clientY + 18;
             if (x + w > window.innerWidth - 8) x = e.clientX - w - 10;
             if (y + h > window.innerHeight - 8) y = e.clientY - h - 12;
             noteFollow.style.left = x + 'px'; noteFollow.style.top = y + 'px';
+            if (two) { nf2.style.left = x + 'px'; nf2.style.top = (y + h1 + 6) + 'px'; }
         });
-        document.addEventListener('mouseout', function (e) { if (nfThumb(e.target) && !nfThumb(e.relatedTarget)) noteFollow.hidden = true; });
-        document.addEventListener('scroll', function () { noteFollow.hidden = true; }, true);
-        document.addEventListener('click', function (e) { if (nfThumb(e.target)) noteFollow.hidden = true; }, true);
+        document.addEventListener('mouseout', function (e) { if (nfThumb(e.target) && !nfThumb(e.relatedTarget)) nfHide(); });
+        document.addEventListener('scroll', nfHide, true);
+        document.addEventListener('click', function (e) { if (nfThumb(e.target)) nfHide(); }, true);
     }
 
     // ---------------- Canlı Dolar / Gram Altın ----------------

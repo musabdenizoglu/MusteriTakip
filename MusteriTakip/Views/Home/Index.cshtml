@@ -57,20 +57,26 @@
                 if (it.Ev == "rec")
                 {
                     <div class="rec-row home-rec-row has-detail" tabindex="0" data-kb="1" role="button" data-s="@search" data-href="@detailsUrl/@it.CustomerId#rec-@it.RecordId">
-                        <div class="thumb@(it.Image != null ? " clickable" : "")" data-note="@it.Note">@if (it.Image != null)
+                        <div class="thumb@(it.Image != null ? " clickable" : "")" data-note="@it.Note" data-note2="@it.EditNote">@if (it.Image != null)
                             {<img src="@it.Image" alt="" data-zoom data-caption="@it.CustName · @it.Model">}
                             else
                             {@Html.Raw(Ui.PhRing)}</div>
-                        <div class="date">@Fmt.Date(it.Date)<small title="Oluşturma saati">@Ui.Time(it.CreatedAt)</small>@if (it.EditedAt is { } ed)
-                            {<small class="ed" title="Değiştirilme tarihi">✎ @ed.ToLocalTime().ToString("dd.MM.yyyy")</small><small class="ed">@ed.ToLocalTime().ToString("HH:mm")</small>}</div>
+                        @if (it.EditedAt is { } ed)
+                        {
+                            <div class="date"><span title="Değiştirilme tarihi">@ed.ToLocalTime().ToString("dd.MM.yyyy")</span><small title="Değiştirilme saati">@ed.ToLocalTime().ToString("HH:mm")</small><small class="ed" title="Önceki tarih">✎ @Fmt.Date(it.Date)</small><small class="ed" title="Oluşturma saati">@Ui.Time(it.CreatedAt)</small></div>
+                        }
+                        else
+                        {
+                            <div class="date">@Fmt.Date(it.Date)<small title="Oluşturma saati">@Ui.Time(it.CreatedAt)</small></div>
+                        }
                         <div class="cust" title="Müşteri sayfasını aç" style="cursor:pointer" data-href="@detailsUrl/@it.CustomerId"><span class="cin" data-m="1">@it.CustName</span></div>
                         <div class="hcode">@if (it.Code != "")
                             {<span class="mcode">@it.Code</span>}
                             else
                             {<span class="mcode-none">—</span>}</div>
                         <div class="model"><span class="cin" data-m="1">@it.Model</span><span class="hk">@if (it.Kind != "")
-                            {<span class="kind-tag@(it.KindCls)">@it.Kind</span>}@if (!string.IsNullOrWhiteSpace(it.Note))
-                            {<button type="button" class="note-info" data-note="@it.Note" aria-label="Notu göster" title="Not">i</button>}</span></div>
+                            {<span class="kind-tag@(it.KindCls)">@it.Kind</span>}@if (!string.IsNullOrWhiteSpace(it.Note) || !string.IsNullOrWhiteSpace(it.EditNote))
+                            {<button type="button" class="note-info" data-note="@it.Note" data-note2="@it.EditNote" aria-label="Notu göster" title="Not">i</button>}</span></div>
                     </div>
                 }
                 else

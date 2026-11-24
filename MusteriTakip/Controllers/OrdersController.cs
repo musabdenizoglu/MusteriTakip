@@ -91,6 +91,7 @@ public class OrdersController : Controller
             Cizim = r.Cizim,
             Price = r.Price,
             Note = r.Note,
+            EditNote = r.EditNote,
             ExistingImage = r.ImagePath,
             Expenses = r.Expenses.Select(e => new OrderExpenseVm { Desc = e.Description, Amount = e.Amount }).ToList()
         };
@@ -110,6 +111,8 @@ public class OrdersController : Controller
         r.Expenses.Clear();
         await ApplyAsync(r, vm, code, snapshot: false);
         r.EditedAt = DateTime.UtcNow;
+        if (vm.Bump) r.UpdatedAt = r.EditedAt;
+        r.EditNote = string.IsNullOrWhiteSpace(vm.EditNote) ? null : vm.EditNote.Trim();
         SyncCustomerCode(r.Customer, code);
         await _db.SaveChangesAsync();
         TempData["Ok"] = "Sipariş güncellendi.";
@@ -151,6 +154,19 @@ public class OrdersController : Controller
         TempData["Ok"] = "Kayıt çöp kutusuna taşındı.";
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
         return RedirectToAction("Details", "Customers", new { id = r.CustomerId });
+    }
+
+    /// <summary>Müşteri sayfasında seçilen siparişleri topluca çöp kutusuna taşır.</summary>
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteMany(int customerId, int[] ids, string? returnUrl)
+    {
+        var recs = await _db.OrderRecords.Where(r => r.CustomerId == customerId && ids.Contains(r.Id)).ToListAsync();
+        var now = DateTime.UtcNow;
+        foreach (var r in recs) r.DeletedAt = now;
+        await _db.SaveChangesAsync();
+        if (recs.Count > 0) TempData["Ok"] = $"{recs.Count} kayıt çöp kutusuna taşındı.";
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
+        return RedirectToAction("Details", "Customers", new { id = customerId });
     }
 
     // ---------------- Eski borç ----------------
@@ -204,7 +220,7 @@ public class OrdersController : Controller
         r.Price = Math.Round(vm.Amount!.Value, 2);
         r.Date = Dates.ParseOrToday(vm.Date);
         r.Note = vm.Note?.Trim();
-        r.EditedAt = DateTime.UtcNow;
+        r.EditedAt = r.UpdatedAt = DateTime.UtcNow; // borç düzenlemesi soru sormadan en üste çıkar (önceki davranış)
         await _db.SaveChangesAsync();
         return RedirectToAction("Details", "Customers", new { id = r.CustomerId, tab = "cari" });
     }

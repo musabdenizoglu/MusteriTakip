@@ -6,7 +6,7 @@
     var t = Model.Totals;
     // HTML'de kasa listesi en son eklenen üstte sıralanır; yalnızca fiyatı olan siparişler listelenir
     var items = Model.Items.Where(m => m.Type is MovementType.Payment or MovementType.Expense || m.Rec?.Price != null)
-                           .OrderByDescending(m => m.CreatedAt).ToList();
+                           .OrderByDescending(m => m.KasaSortAt).ToList();
 }
 
 <div class="home-panel active" id="panelKasa">

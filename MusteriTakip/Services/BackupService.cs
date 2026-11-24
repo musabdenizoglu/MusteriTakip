@@ -129,10 +129,12 @@ public class BackupService
                         AltinIscilik = Dec(r, "altinIscilik"),
                         Cizim = Dec(r, "cizim"),
                         Note = Cut(Str(r, "note"), 2000),
+                        EditNote = Cut(Str(r, "editNote"), 2000),
                         ArchDevirYear = (int?)Dec(r, "archDevir"),
                         LegacyId = Cut(Str(r, "id"), 40),
                         CreatedAt = FromLegacyId(Str(r, "id")) ?? DateTime.UtcNow,
-                        EditedAt = FromMs(Dec(r, "editedAt"))
+                        EditedAt = FromMs(Dec(r, "editedAt")),
+                        UpdatedAt = FromMs(Dec(r, "updatedAt"))
                     };
                     if (r.TryGetProperty("calc", out var calc) && calc.ValueKind == JsonValueKind.Object)
                     {
@@ -276,6 +278,7 @@ public class BackupService
                     ["altinIscilik"] = r.AltinIscilik,
                     ["cizim"] = r.Cizim,
                     ["note"] = r.Note,
+                    ["editNote"] = r.EditNote,
                     ["archDevir"] = r.ArchDevirYear,
                     ["expenses"] = r.Expenses.Select(e => new { desc = e.Description, amount = e.Amount }).ToList(),
                     ["calc"] = new

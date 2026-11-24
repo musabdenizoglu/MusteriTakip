@@ -17,9 +17,11 @@
         <form method="post" asp-controller="Orders" asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@Model.Id" class="record-form" id="recordForm" novalidate
               data-order-form
               data-set-mum="@Fmt.Input(Model.SetMum)" data-set-gumus="@Fmt.Input(Model.SetGumus)" data-set-altin="@Fmt.Input(Model.SetAltin)"
-              data-brand="@Model.Brand">
+              data-brand="@Model.Brand" data-bump-ask="@(isNew ? null : "1")">
             <div asp-validation-summary="All" class="error full"></div>
             <input type="hidden" asp-for="CustomerId" />
+            @if (!isNew)
+            {<input type="hidden" name="Bump" value="false" />}
             <input type="hidden" asp-for="LiveUsdTry" data-live="usd" />
             <input type="hidden" asp-for="LiveGramAltinTl" data-live="gold" />
             <input type="hidden" asp-for="ImageData" />
@@ -99,6 +101,16 @@
                     <button type="button" class="mic-btn" title="Sesle yaz (Türkçe)" aria-label="Sesle yaz (Türkçe)"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" /></svg></button>
                 </div>
             </div>
+            @if (!isNew)
+            {
+                <div class="field rec-note-field rec-editnote-field">
+                    <label for="recordEditNote">Düzenleme notu</label>
+                    <div class="has-mic">
+                        <textarea id="recordEditNote" name="EditNote" spellcheck="true" lang="tr" rows="2" maxlength="2000" placeholder="Bu düzenlemeyle ilgili not (isteğe bağlı)">@Model.EditNote</textarea>
+                        <button type="button" class="mic-btn" title="Sesle yaz (Türkçe)" aria-label="Sesle yaz (Türkçe)"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" /></svg></button>
+                    </div>
+                </div>
+            }
             <div class="rec-actions">
                 <button type="submit" class="btn save-record" id="recordSubmitBtn">Siparişi kaydet</button>
                 <button type="button" class="btn secondary save-record" id="recordCancelBtn" data-close>Vazgeç</button>

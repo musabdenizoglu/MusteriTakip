@@ -54,7 +54,19 @@ using (var scope = app.Services.CreateScope())
     if (db.Database.GetMigrations().Any())
         db.Database.Migrate();      // "dotnet ef migrations add ..." ile migration eklediyseniz
     else
+    {
         db.Database.EnsureCreated(); // migration yoksa şemayı modelden oluşturur (seed dahil)
+        // Sonradan eklenen sütunlar: eski veritabanına elle eklenir
+        // Mevcut sıralama korunsun: eskiden Kasa düzenleme anına göre sıralanıyordu
+        db.Database.ExecuteSqlRaw(@"
+IF COL_LENGTH('OrderRecords', 'UpdatedAt') IS NULL
+BEGIN
+    ALTER TABLE OrderRecords ADD UpdatedAt datetime2 NULL;
+    EXEC('UPDATE OrderRecords SET UpdatedAt = EditedAt');
+END
+IF COL_LENGTH('OrderRecords', 'EditNote') IS NULL
+    ALTER TABLE OrderRecords ADD EditNote nvarchar(2000) NULL;");
+    }
 }
 
 if (!app.Environment.IsDevelopment())

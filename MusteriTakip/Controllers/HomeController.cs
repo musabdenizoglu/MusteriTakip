@@ -86,7 +86,8 @@ public class HomeController : Controller
                 {
                     Ev = "rec", CustomerId = c.Id, RecordId = r.Id, CustName = c.Name, Date = r.Date,
                     CreatedAt = r.CreatedAt, EditedAt = r.EditedAt,
-                    Image = r.ImagePath, Note = r.Note, Code = r.Code ?? "", CustCode = cc, Model = r.Model,
+                    SortAt = r.UpdatedAt is { } u && u > r.CreatedAt ? u : r.CreatedAt,
+                    Image = r.ImagePath, Note = r.Note, EditNote = r.EditNote, Code = r.Code ?? "", CustCode = cc, Model = r.Model,
                     Kind = kind, KindCls = Ui.RecKindCls(r),
                     TlTag = kind, TlAmt = Fmt.Usd(r.Price)
                 });
@@ -117,7 +118,8 @@ public class HomeController : Controller
                 TlTag = label, TlAmt = "−" + (u != null ? Fmt.Usd(u) : Fmt.Tl(x.Amount)), TlAmtSub = u != null ? Fmt.Tl(x.Amount) : null
             });
         }
-        return items.OrderByDescending(i => i.CreatedAt).ToList();
+        foreach (var i in items) if (i.SortAt == default) i.SortAt = i.CreatedAt;
+        return items.OrderByDescending(i => i.SortAt).ToList();
     }
 
     [AllowAnonymous]

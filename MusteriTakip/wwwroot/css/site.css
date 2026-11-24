@@ -4106,3 +4106,13 @@ html:not(.zz):not(.zy):not(.zx) body .kind-tag.k-altin{background:var(--au-bg) !
 /* ==== payTagLikeCode ==== Ana sayfa "Ödeme" etiketi, aynı satırdaki ödeme kodu etiketiyle (ŞMS-Hurda / -Has / -₺ / -$) aynı renk ve çerçevede */
 html:not(.zz) body #homeRecentList .home-rec-row .kind-tag.k-pay:is(.k-purple,.k-green,.k-blue,.k-orange){background:color-mix(in srgb, var(--k) 16%, transparent) !important; color:var(--k) !important; border:1px solid color-mix(in srgb, var(--k) 40%, transparent) !important;}
 html:not(.zz) body #homeRecentList .home-rec-row .kind-tag.k-pay.k-orange{background:var(--au-bg) !important; color:var(--au-ink) !important; border-color:var(--au-line) !important;}
+
+/* ==== Değiştirilme tarihi (✎) — hesap hareketleri, kasa, sipariş geçmişi (ana sayfadaki gibi) ==== */
+html body .hist-row > .hist-date.has-ed, html body #recordsList .rec-row > .rec-date0.has-ed{display:flex !important; flex-direction:column !important; align-items:center !important; justify-content:center !important; gap:1px; line-height:1.25; text-align:center;}
+html body .hist-row > .hist-date small.ed, html body #recordsList .rec-row > .rec-date0 small.ed{font-size:.72rem; font-weight:500; color:var(--amber); opacity:1; white-space:nowrap;}
+
+/* ==== Düzenleme notu (ikinci not balonu / resim altında ikinci not) ==== */
+.note-pop .n2-h, .img-modal .modal-caption .mc-note2 .n2-h{display:block; font-size:.74rem; font-weight:700; color:var(--amber); margin-bottom:2px; white-space:nowrap;}
+.note-pop.note2{border-color:var(--amber);}
+.note-pop.note2::before{display:none;}
+.img-modal .modal-caption .mc-note2{margin-top:8px; padding-top:8px; border-top:1px dashed currentColor;}
