@@ -63,8 +63,9 @@ public class OrdersController : Controller
         return RedirectToAction("Details", "Customers", new { id = c.Id });
     }
 
-    public async Task<IActionResult> Edit(int id)
+    public async Task<IActionResult> Edit(int id, string? returnUrl)
     {
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) ViewData["ReturnUrl"] = returnUrl;
         var r = await _db.OrderRecords.Include(x => x.Customer).Include(x => x.Expenses).FirstOrDefaultAsync(x => x.Id == id);
         if (r == null) return NotFound();
         if (r.IsDebt) return RedirectToAction(nameof(EditDebt), new { id });
@@ -100,10 +101,12 @@ public class OrdersController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, OrderFormVm vm)
+    public async Task<IActionResult> Edit(int id, OrderFormVm vm, string? returnUrl)
     {
         var r = await _db.OrderRecords.Include(x => x.Customer).Include(x => x.Expenses).FirstOrDefaultAsync(x => x.Id == id);
         if (r == null || r.Customer == null) return NotFound();
+        var localReturn = !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : null;
+        ViewData["ReturnUrl"] = localReturn;
         var code = await ValidateAsync(vm, r.Customer, id);
         if (!ModelState.IsValid) { vm.Id = id; vm.CustomerName = r.Customer.Name; vm.ExistingImage = r.ImagePath; await FillSettings(vm); return View("Form", vm); }
 
@@ -116,6 +119,8 @@ public class OrdersController : Controller
         SyncCustomerCode(r.Customer, code);
         await _db.SaveChangesAsync();
         TempData["Ok"] = "Sipariş güncellendi.";
+        TempData["EditedRec"] = r.Id.ToString();   // dönülen sayfada bu siparişin satırı kısa süre yeşil yanar
+        if (localReturn != null) return Redirect(localReturn);   // düzenlemenin açıldığı sayfaya dön
         return RedirectToAction("Details", "Customers", new { id = r.CustomerId });
     }
 

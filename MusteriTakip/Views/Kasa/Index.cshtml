@@ -17,17 +17,17 @@
         <div class="kasa-strip">
             <div class="ks-group"><span class="ks-title">Dolar ($)</span>
                 <div class="kasa-stats">
-                    <div class="kasa-stat"><span class="label">Ciro</span><span class="amount" id="kasaTotalPrice">@Fmt.Usd(t.Ciro)</span></div>
-                    <div class="kasa-stat"><span class="label">Tahsilat</span><span class="amount" id="kasaTotalPaid">@Fmt.Usd(t.Tahsilat)</span></div>
-                    <div class="kasa-stat"><span class="label">Gider</span><span class="amount" id="kasaTotalExpense">@Fmt.Usd(t.GiderUsd)</span><span class="sub" id="kasaExpenseTl">@(t.GiderTl > 0 ? Fmt.Tl(t.GiderTl) : "")</span></div>
-                    <div class="kasa-stat result"><span class="label">Kasa Bakiye</span><span class="amount@(t.Bakiye < 0 ? " neg" : "")" id="kasaRemaining">@Fmt.Usd(t.Bakiye)</span></div>
+                    <div class="kasa-stat"><span class="label">Ciro</span><span class="amount" id="kasaTotalPrice" data-sync>@Fmt.Usd(t.Ciro)</span></div>
+                    <div class="kasa-stat"><span class="label">Tahsilat</span><span class="amount" id="kasaTotalPaid" data-sync>@Fmt.Usd(t.Tahsilat)</span></div>
+                    <div class="kasa-stat"><span class="label">Gider</span><span class="amount" id="kasaTotalExpense" data-sync>@Fmt.Usd(t.GiderUsd)</span><span class="sub" id="kasaExpenseTl" data-sync>@(t.GiderTl > 0 ? Fmt.Tl(t.GiderTl) : "")</span></div>
+                    <div class="kasa-stat result"><span class="label">Kasa Bakiye</span><span class="amount@(t.Bakiye < 0 ? " neg" : "")" id="kasaRemaining" data-sync>@Fmt.Usd(t.Bakiye)</span></div>
                 </div>
             </div>
             <div class="ks-group"><span class="ks-title">Altın (gr)</span>
                 <div class="kasa-stats kasa-gold-stats">
-                    <div class="kasa-stat"><span class="label">Toplam Altın Ciro</span><span class="amount" id="kasaGoldTotal">@Fmt.Gr(t.GoldTotal)</span></div>
-                    <div class="kasa-stat"><span class="label">Alınan Altın Ödeme</span><span class="amount" id="kasaGoldPaid">@Fmt.Gr(t.GoldPaid)</span></div>
-                    <div class="kasa-stat result"><span class="label">Kalan Altın Bakiye</span><span class="amount" id="kasaGoldRemaining">@Fmt.Gr(t.GoldRest)</span><span class="sub gold-val" id="kasaGoldValue" data-gold-value="@Fmt.Input(t.GoldRest)"></span></div>
+                    <div class="kasa-stat"><span class="label">Toplam Altın Ciro</span><span class="amount" id="kasaGoldTotal" data-sync>@Fmt.Gr(t.GoldTotal)</span></div>
+                    <div class="kasa-stat"><span class="label">Alınan Altın Ödeme</span><span class="amount" id="kasaGoldPaid" data-sync>@Fmt.Gr(t.GoldPaid)</span></div>
+                    <div class="kasa-stat result"><span class="label">Kalan Altın Bakiye</span><span class="amount" id="kasaGoldRemaining" data-sync>@Fmt.Gr(t.GoldRest)</span><span class="sub gold-val" id="kasaGoldValue" data-sync data-gold-value="@Fmt.Input(t.GoldRest)"></span></div>
                 </div>
             </div>
         </div>
@@ -64,7 +64,7 @@
                     </div>
                 </div>
             </div>
-            <div id="kasaList">
+            <div id="kasaList" data-sync="html">
                 @foreach (var m in items)
                 {
                     <partial name="_HistRow" model="m" view-data='new ViewDataDictionary(ViewData) { ["Mode"] = "kasa" }' />

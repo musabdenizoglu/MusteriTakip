@@ -5,7 +5,8 @@
     ViewData["Title"] = isNew ? "Yeni Sipariş" : "Siparişi Düzenle";
     ViewData["Nav"] = "cust";
     var exps = Model.Expenses.Count > 0 ? Model.Expenses : new List<OrderExpenseVm> { new() };
-    var back = Url.Action("Details", "Customers", new { id = Model.CustomerId });
+    var returnUrl = ViewData["ReturnUrl"] as string;
+    var back = !string.IsNullOrEmpty(returnUrl) ? returnUrl : Url.Action("Details", "Customers", new { id = Model.CustomerId });
 }
 <div class="confirm-modal open" id="recModal" data-standalone data-back="@back">
     <div class="confirm-card rec-card" role="dialog" aria-modal="true" aria-labelledby="recModalTitle">
@@ -21,7 +22,8 @@
             <div asp-validation-summary="All" class="error full"></div>
             <input type="hidden" asp-for="CustomerId" />
             @if (!isNew)
-            {<input type="hidden" name="Bump" value="false" />}
+            {<input type="hidden" name="Bump" value="false" />
+             <input type="hidden" name="returnUrl" value="@returnUrl" data-return-url />}
             <input type="hidden" asp-for="LiveUsdTry" data-live="usd" />
             <input type="hidden" asp-for="LiveGramAltinTl" data-live="gold" />
             <input type="hidden" asp-for="ImageData" />

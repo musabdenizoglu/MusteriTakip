@@ -135,18 +135,60 @@ window.mtHide = function (el, hide) {
             fmOrig.forEach(function (x) { x[0].className = x[1]; });
         });
     }
-    // Başarı mesajı ("Sipariş kaydedildi" vb.) 4 sn sonra yumuşak geçişle kendiliğinden kapanır.
-    // Fare üzerindeyken beklenir. Hata mesajları okunması gerektiği için açık kalır.
-    $$('.flash.ok').forEach(function (f) {
-        var timer;
-        function hide() {
-            if (f.matches(':hover')) { timer = setTimeout(hide, 1000); return; }
-            f.style.height = f.offsetHeight + 'px'; void f.offsetHeight;
-            f.classList.add('out');
-            setTimeout(function () { f.remove(); }, 750); // geçiş bitince (hareket azaltma açıksa da) kaldır
+    // Düzenlenip kaydedilen siparişin satırı kısa süre yeşil yanar.
+    // Renk satırın kendi arka planına satır içi !important olarak yazılır (bazı tablolarda arka plan
+    // stil dosyasında !important). Satırın asıl zemini (renk/geçiş) yeşilin altında korunur.
+    // Söndürme adım adım JS ile yapılır; CSS'teki hareket azaltma kuralı geçiş/animasyonları sıfırlıyor.
+    // Başarı mesajı ve satır vurgusu tek bir zamanlayıcıyla birlikte söner: aynı anda başlar, aynı anda biter.
+    var OK_DUR = 2200, OK_HOLD = 0.45;   // toplam süre; ilk %45 tam görünür, sonra söner
+    function okAlpha(p) { return p < OK_HOLD ? 1 : 1 - Math.pow((p - OK_HOLD) / (1 - OK_HOLD), 2); }   // yumuşak sönüş
+    function okRun(dur, frame, end) {
+        var t0 = performance.now();
+        (function step(now) {
+            var p = Math.min(1, ((now || t0) - t0) / dur);
+            if (p >= 1) { end(); return; }
+            frame(okAlpha(p)); requestAnimationFrame(step);
+        })();
+    }
+    window.mtOkPulse = function (flash, id) {
+        var parts = [];
+        // Satır(lar): renk satırın kendi arka planına satır içi !important olarak yazılır (bazı tablolarda
+        // arka plan stil dosyasında !important); satırın asıl zemini yeşilin altında korunur.
+        var rows = id ? $$('[data-rec="' + id + '"]') : [];
+        var vis = rows.filter(function (r) { return r.offsetParent !== null; });
+        if (vis[0]) {
+            var b = vis[0].getBoundingClientRect();
+            if (b.top < 0 || b.bottom > window.innerHeight) vis[0].scrollIntoView({ block: 'center' });
         }
-        timer = setTimeout(hide, 4000);
-    });
+        // Renk "Sipariş güncellendi" mesajının zemininden (mvc.css --ok-rgb / --ok-a) alınır
+        var rs = getComputedStyle(document.documentElement);
+        var rgb = rs.getPropertyValue('--ok-rgb').trim() || '200, 234, 214', A = parseFloat(rs.getPropertyValue('--ok-a')) || 1;
+        rows.forEach(function (r) {
+            r.style.removeProperty('background-image');
+            var img = getComputedStyle(r).backgroundImage, base = img && img !== 'none' ? ', ' + img : '';
+            parts.push({
+                frame: function (a) { var c = 'rgba(' + rgb + ',' + (A * a).toFixed(3) + ')'; r.style.setProperty('background-image', 'linear-gradient(' + c + ',' + c + ')' + base, 'important'); },
+                end: function () { r.style.removeProperty('background-image'); }
+            });
+        });
+        // Mesaj: eski yerinde ve ölçüsünde kalır; satırla birlikte solar, sonra kapladığı yer kapanır
+        if (flash) {
+            flash.classList.add('pulsing');
+            parts.push({
+                frame: function (a) { flash.style.opacity = a; flash.style.transform = 'translateY(' + (-8 * (1 - a)).toFixed(1) + 'px)'; },
+                end: function () {
+                    flash.style.opacity = 0;
+                    flash.style.height = flash.offsetHeight + 'px'; void flash.offsetHeight;
+                    flash.classList.remove('pulsing'); flash.classList.add('out');
+                    setTimeout(function () { flash.remove(); }, 750);   // yer kapanınca (hareket azaltma açıksa da) kaldır
+                }
+            });
+        }
+        if (!parts.length) return;
+        // Satırla eşleşmeyen mesajlar (ör. "Müşteri kaydedildi") okunabilsin diye daha uzun kalır
+        okRun(rows.length ? OK_DUR : 4000, function (a) { parts.forEach(function (x) { x.frame(a); }); }, function () { parts.forEach(function (x) { x.end(); }); });
+    };
+    window.mtOkPulse(document.querySelector('.flash.ok'), document.body.dataset.editedRec);
     // Kullanıcı menüsü (sağ üst)
     var fmUser = $('#fmUser');
     if (fmUser) {
@@ -668,6 +710,17 @@ window.mtHide = function (el, hide) {
         el.classList.remove('up', 'down');
         if (prev > 0 && v > 0 && v !== prev) el.classList.add(v > prev ? 'up' : 'down');
     }
+    // Kalan altının bugünkü karşılığı
+    function renderGoldVals(d) {
+        if (!d || !d.gold || !d.usd) return;
+        $$('[data-gold-value]').forEach(function (el) {
+            var gr = parseFloat(el.dataset.goldValue) || 0;
+            if (Math.abs(gr) < 0.0005 || !(d.gold[0] > 0)) { el.textContent = ''; return; }
+            var t = gr * d.gold[0], usd = d.usd[1] > 0 ? t / d.usd[1] : null;
+            el.textContent = '≈ ' + (usd !== null ? money(usd) + ' · ' : '') + tl(t);
+        });
+    }
+    window.mtGoldVals = function () { renderGoldVals(window.__mtLT); };
     function renderTicker(d, stale) {
         var p = window.__mtLT;
         setLt('ltUsdBuy', d.usd[0], p && p.usd[0]); setLt('ltUsdSell', d.usd[1], p && p.usd[1]);
@@ -679,13 +732,7 @@ window.mtHide = function (el, hide) {
         // Sipariş formundaki gizli alanlar (kayıt anındaki kur/altın)
         $$('[data-live="usd"]').forEach(function (i) { if (!i.value) i.value = (Math.round(d.usd[1] * 10000) / 10000).toString(); });
         $$('[data-live="gold"]').forEach(function (i) { if (!i.value) i.value = (Math.round(d.gold[1] * 100) / 100).toString(); });
-        // Kalan altının bugünkü karşılığı
-        $$('[data-gold-value]').forEach(function (el) {
-            var gr = parseFloat(el.dataset.goldValue) || 0;
-            if (Math.abs(gr) < 0.0005 || !(d.gold[0] > 0)) { el.textContent = ''; return; }
-            var t = gr * d.gold[0], usd = d.usd[1] > 0 ? t / d.usd[1] : null;
-            el.textContent = '≈ ' + (usd !== null ? money(usd) + ' · ' : '') + tl(t);
-        });
+        renderGoldVals(d);
         document.dispatchEvent(new CustomEvent('mt:ticker'));
     }
     async function refreshTicker() {
@@ -1004,6 +1051,7 @@ window.mtHide = function (el, hide) {
             else if (m.dataset.back) location.href = m.dataset.back;
             else history.back();
         }
+        m.__close = close;
         // Boş alana tıklama: basış da bırakış da arka planda olmalı. Yoksa kartın dışına taşan bir
         // listeden seçim (liste basışta kapanınca tıklama arka plana düşer) pencereyi kapatıyordu.
         var downOnBg = false;
@@ -1061,10 +1109,7 @@ window.mtHide = function (el, hide) {
             if (!res.ok || res.redirected) { location.href = url; return; }
             var wrap = document.createElement('div'); wrap.innerHTML = await res.text();
             var m = wrap.querySelector('.confirm-modal'); if (!m) { location.href = url; return; }
-            document.body.appendChild(m);
-            m.removeAttribute('data-standalone'); m.classList.add('open');
-            initForms(m); wireModal(m, true);
-            m.querySelectorAll('script').forEach(function (old) { var s = document.createElement('script'); s.textContent = old.textContent; old.replaceWith(s); });
+            mountModal(m);
             // "Yeni Sipariş" butonuna bırakılan resim: sipariş kartı açılınca resim alanına eklenir
             if (window.__dropImg) {
                 if (m.querySelector('#recordImage') && window.__dzGive) { window.__dzGive('recordImage', window.__dropImg); window.__dropImg = null; }
@@ -1073,6 +1118,88 @@ window.mtHide = function (el, hide) {
             }
         } catch (err) { location.href = url; }
     }, true);
+
+    // Sunucudan gelen pencereyi sayfaya ekleyip açar
+    function mountModal(m) {
+        document.body.appendChild(m);
+        m.removeAttribute('data-standalone'); m.classList.add('open');
+        // Düzenleme kaydedilince bu sayfaya dönülsün
+        m.querySelectorAll('input[data-return-url]').forEach(function (i) { if (!i.value) i.value = location.pathname + location.search; });
+        initForms(m); wireModal(m, true);
+        m.querySelectorAll('script').forEach(function (old) { var s = document.createElement('script'); s.textContent = old.textContent; old.replaceWith(s); });
+        // Sipariş düzenleme formu sayfa yenilenmeden kaydedilir (resim filigranı sonrası of.submit() de buraya düşer)
+        $$('form', m).forEach(function (f) {
+            if (f.querySelector('input[data-return-url]')) f.submit = function () { ajaxSave(f, m); };
+        });
+    }
+
+    // ---------------- Sipariş düzenlemesini sayfa yenilenmeden kaydet ----------------
+    // Form arka planda gönderilir. Sunucu düzenlemenin açıldığı sayfaya yönlendirir; o sayfanın
+    // güncel hâlinden yalnızca [data-sync] işaretli alanlar (tablolar, toplamlar) alınıp yerine konur.
+    // Böylece kaydırma konumu, arama/dönem filtresi ve seçimler korunur. Hata varsa pencere hatalarla yenilenir.
+    document.addEventListener('submit', function (e) {
+        var f = e.target;
+        if (e.defaultPrevented || !f.querySelector || !f.querySelector('input[data-return-url]')) return;
+        var m = f.closest('.confirm-modal'); if (!m || m.hasAttribute('data-standalone')) return;
+        e.preventDefault();
+        ajaxSave(f, m);
+    });
+    async function ajaxSave(f, m) {
+        if (f.__saving) return; f.__saving = true;
+        var btns = $$('button[type=submit], button:not([type])', f); btns.forEach(function (b) { b.disabled = true; });
+        var saved = false;
+        try {
+            var res = await fetch(f.action, { method: 'POST', body: new FormData(f), credentials: 'same-origin' });
+            var doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+            var here = location.pathname + location.search, u = new URL(res.url);
+            if (res.ok && res.redirected) {
+                saved = true;
+                if (u.origin !== location.origin || u.pathname + u.search !== here) { location.href = res.url; return; }
+                syncPage(doc);
+                if (m.__close) m.__close(); else m.remove();
+                var fl = doc.querySelector('.flash.ok'), host = document.querySelector('.home-content');
+                if (fl && host) { $$('.flash', host).forEach(function (x) { x.remove(); }); host.insertBefore(fl, host.firstChild); } else fl = null;
+                window.mtOkPulse(fl, doc.body.dataset.editedRec);
+                return;
+            }
+            var nm = res.ok && doc.querySelector('.confirm-modal');
+            if (!nm) throw new Error('beklenmeyen yanıt');
+            // Kayıt hatası: pencere hata mesajlarıyla yeniden açılır
+            nm = document.importNode(nm, true);
+            m.remove(); mountModal(nm);
+        } catch (err) {
+            if (saved) location.reload();                        // kayıt tamam, ekran güncellenemedi
+            else HTMLFormElement.prototype.submit.call(f);      // olmazsa klasik gönderim
+        } finally {
+            f.__saving = false; btns.forEach(function (b) { b.disabled = false; });
+        }
+    }
+    function syncPage(doc) {
+        // Kaydırma konumlarını sakla (sayfa ve kaydırılan kutular)
+        var scrolls = [[document.scrollingElement, document.scrollingElement.scrollTop]];
+        $$('[data-sync="html"]').forEach(function (el) {
+            for (var p = el; p && p !== document.body; p = p.parentElement) if (p.scrollTop > 0) scrolls.push([p, p.scrollTop]);
+        });
+        $$('[data-sync][id]').forEach(function (el) {
+            var n = doc.getElementById(el.id); if (!n) return;
+            if (el.dataset.sync === 'html') {
+                // Seçili kutular yenilenen satırlarda da seçili kalsın
+                var sel = $$('.hsel-box:checked', el).map(function (b) { return b.dataset.key; });
+                el.innerHTML = n.innerHTML;
+                sel.forEach(function (k) { var b = el.querySelector('.hsel-box[data-key="' + k + '"]'); if (b) b.checked = true; });
+                var any = el.querySelector('.hsel-box'); if (any) any.dispatchEvent(new Event('change', { bubbles: true }));
+            } else {
+                el.innerHTML = n.innerHTML; el.className = n.className;
+                if (n.dataset.goldValue !== undefined) el.dataset.goldValue = n.dataset.goldValue;
+            }
+        });
+        if (window.mtGoldVals) window.mtGoldVals();
+        // Arama ve dönem filtrelerini yeni satırlara yeniden uygula
+        $$('.hs-filter input').forEach(function (i) { i.dispatchEvent(new Event('input', { bubbles: true })); });
+        $$('.hs-filter select').forEach(function (s) { s.dispatchEvent(new Event('change', { bubbles: true })); });
+        if (window.mtFit) window.mtFit();
+        scrolls.forEach(function (x) { x[0].scrollTop = x[1]; });
+    }
 })();
 
 // ---------------- Boş durum kutuları (HTML: "ARAYÜZ: BOŞ DURUM ÇİZİMLERİ") ----------------

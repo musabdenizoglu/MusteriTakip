@@ -49,7 +49,7 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/mvc.css" asp-append-version="true" />
 </head>
-<body>
+<body data-edited-rec="@(TempData["EditedRec"] as string)">
     <div id="mainScreen" style="display:block">
         <div class="topbar">
             <button type="button" id="fmBurger" aria-label="Menüyü aç/kapat" title="Menüyü daralt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path><path d="M20 4v16"></path></svg></button>

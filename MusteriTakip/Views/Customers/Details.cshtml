@@ -63,7 +63,7 @@
                 {<span class="ini-av" style="background:@Ui.AvColor(c.Name)">@Ui.Initials(c.Name)</span>}</div>
             <div class="name-col">
                 <div class="name-top"><h2 id="activeCustName">@c.Name</h2>@if (all.Rest > 0.005m)
-                    {<span class="bal-badge debt" id="custBalBadge" hidden>Borç @Fmt.Usd(all.Rest)</span>}</div>
+                    {<span class="bal-badge debt" id="custBalBadge" data-sync hidden>Borç @Fmt.Usd(all.Rest)</span>}</div>
                 <span class="phone" id="activeCustPhone">@c.Phone</span>
                 <span class="cust-email" id="activeCustEmail">@c.Email</span>
             </div>
@@ -91,7 +91,7 @@
         </div>
         @if (hasAny)
         {
-            <div class="cust-insight on" id="custInsight" aria-live="polite">
+            <div class="cust-insight on" id="custInsight" data-sync aria-live="polite">
                 <div class="ci-top"><span class="ci-pill @pillCls">@pillTxt</span><span class="ci-txt">@ciTxt</span></div>
                 <div class="ci-grid">
                     <div class="ci-c"><small>Ödeme oranı</small><b>%@Math.Round(ratio)</b><div class="ci-bar" role="img" aria-label="Ödeme oranı yüzde @Math.Round(ratio)"><i style="width:@Math.Round(ratio)%"></i></div></div>
@@ -105,27 +105,27 @@
         }
         else
         {
-            <div class="cust-insight" id="custInsight" aria-live="polite"></div>
+            <div class="cust-insight" id="custInsight" data-sync aria-live="polite"></div>
         }
         <div id="custBalanceBlock" style="@(Model.Tab == "cari" ? "" : "display:none;")">
             <div class="kasa-stats cust-stats">
-                <div class="kasa-stat"><span class="label">Ciro</span><span class="amount" id="activeCustTotal">@Fmt.Usd(t.Ciro)</span></div>
-                <div class="kasa-stat"><span class="label">Tahsilat</span><span class="amount" id="activeCustPaid">@Fmt.Usd(t.Paid)</span></div>
-                <div class="kasa-stat result"><span class="label">Kalan Bakiye</span><span class="amount" id="activeCustRemaining">@Fmt.Usd(t.Rest)</span></div>
+                <div class="kasa-stat"><span class="label">Ciro</span><span class="amount" id="activeCustTotal" data-sync>@Fmt.Usd(t.Ciro)</span></div>
+                <div class="kasa-stat"><span class="label">Tahsilat</span><span class="amount" id="activeCustPaid" data-sync>@Fmt.Usd(t.Paid)</span></div>
+                <div class="kasa-stat result"><span class="label">Kalan Bakiye</span><span class="amount" id="activeCustRemaining" data-sync>@Fmt.Usd(t.Rest)</span></div>
             </div>
             <div class="kasa-stats cust-stats gold-stats">
-                <div class="kasa-stat"><span class="label">Toplam Altın Ciro</span><span class="amount" id="activeCustGoldTotal">@Fmt.Gr(t.GoldTotal)</span></div>
-                <div class="kasa-stat"><span class="label">Alınan Altın Ödeme</span><span class="amount" id="activeCustGoldPaid">@Fmt.Gr(t.GoldPaid)</span></div>
-                <div class="kasa-stat result"><span class="label">Kalan Altın Bakiye</span><span class="amount" id="activeCustGoldRemaining">@Fmt.Gr(t.GoldRest)</span><span class="sub gold-val" id="activeCustGoldValue" data-gold-value="@Fmt.Input(t.GoldRest)"></span></div>
+                <div class="kasa-stat"><span class="label">Toplam Altın Ciro</span><span class="amount" id="activeCustGoldTotal" data-sync>@Fmt.Gr(t.GoldTotal)</span></div>
+                <div class="kasa-stat"><span class="label">Alınan Altın Ödeme</span><span class="amount" id="activeCustGoldPaid" data-sync>@Fmt.Gr(t.GoldPaid)</span></div>
+                <div class="kasa-stat result"><span class="label">Kalan Altın Bakiye</span><span class="amount" id="activeCustGoldRemaining" data-sync>@Fmt.Gr(t.GoldRest)</span><span class="sub gold-val" id="activeCustGoldValue" data-sync data-gold-value="@Fmt.Input(t.GoldRest)"></span></div>
             </div>
         </div>
-        <div class="cust-count" id="activeCustCount">@records.Count kayıt</div>
+        <div class="cust-count" id="activeCustCount" data-sync>@records.Count kayıt</div>
 
         <div class="sub-view-slot">
             @* ---------- Sipariş geçmişi ---------- *@
             <div class="sub-view@(Model.Tab == "records" ? " active" : "")" id="recordsSubView">
                 <div class="records">
-                    <div class="records-head"><h3>Sipariş geçmişi <span class="rec-count" id="recCountInline">@records.Count</span></h3></div>
+                    <div class="records-head"><h3>Sipariş geçmişi <span class="rec-count" id="recCountInline" data-sync>@records.Count</span></h3></div>
                     <div id="recSelBar" class="hist-selbar">
                         <label class="hsel"><input type="checkbox" id="recSelAll" aria-label="Tümünü seç"> <span>Tümünü seç</span></label>
                         <span id="recSelCnt" class="hsel-cnt"></span>
@@ -135,13 +135,13 @@
                         <form method="post" asp-controller="Orders" asp-action="DeleteMany" asp-route-customerId="@c.Id" asp-route-returnUrl="@here" id="recSelDelForm" hidden></form>
                         <div class="hs-filter"><input type="text" id="recSearch" placeholder="Model, kod, tarih, tür…" aria-label="Ara" title="Virgülle birden fazla arama yapabilirsiniz" autocomplete="off"></div>
                     </div>
-                    <div id="recordsList">
+                    <div id="recordsList" data-sync="html">
                         @foreach (var r in records)
                         {
                             var gc = Ui.GoldCalc(r);
                             var kind = Fmt.KindText(r.Kind);
                             var s = (r.Model + " " + r.Code + " " + kind + " " + Fmt.Date(r.Date) + " " + r.Date.ToString("yyyy-MM-dd") + " " + Fmt.EditSearch(r.EditedAt)).ToLower(Fmt.Tr);
-                            <div class="rec-row has-detail" id="rec-@r.Id" data-s="@s">
+                            <div class="rec-row has-detail" id="rec-@r.Id" data-rec="@r.Id" data-s="@s">
                                 <label class="hsel hsel-cell"><input type="checkbox" class="hsel-box" data-key="price:@r.Id" data-id="@r.Id" data-img="@r.ImagePath" aria-label="Siparişi seç"></label>
                                 @if (r.EditedAt is { } ed)
                                 {
@@ -212,7 +212,7 @@
                             </select>
                         </div>
                     </div>
-                    <div id="historyList">
+                    <div id="historyList" data-sync="html">
                         @foreach (var m in Model.History.Where(h => h.Type != MovementType.Expense && (h.Type == MovementType.Payment || h.Rec?.Price != null)))
                         {
                             <partial name="_HistRow" model="m" view-data='new ViewDataDictionary(ViewData) { ["Mode"] = "cust" }' />
@@ -395,7 +395,6 @@
             // Ana sayfadan bir siparişe gelindiyse onu göster
             if (location.hash && location.hash.indexOf('#rec-') === 0) {
                 var el = document.querySelector(location.hash); if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('flash-row'); }
-            }
-        })();
+            }        })();
     </script>
 }
