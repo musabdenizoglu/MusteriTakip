@@ -2080,6 +2080,10 @@ html body .rd-list .rd-price dd,html body .rd-list .rd-profit dd,html body .rd-l
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .rd-list .rd-price dd{color:#d6ac57;} :root:not([data-theme="light"]) .rd-list .rd-profit dd{color:#4cc38a;} :root:not([data-theme="light"]) .rd-list .rd-cost dd{color:#fff;} :root:not([data-theme="light"]) .rd-list .rd-loss dd{color:#ff7b6b;}}
 :root[data-theme="dark"] .rd-list .rd-price dd{color:#d6ac57;} :root[data-theme="dark"] .rd-list .rd-profit dd{color:#4cc38a;} :root[data-theme="dark"] .rd-list .rd-cost dd{color:#fff;} :root[data-theme="dark"] .rd-list .rd-loss dd{color:#ff7b6b;}
 
+/* Zaman çizgisi: müşteri adı tıklanınca müşteri sayfası açılır */
+#homeRecentList .tl-cust{cursor:pointer;}
+#homeRecentList .tl-cust:hover{color:var(--teal);text-decoration:underline;}
+
 /* ==== rdHeadCss ==== */
 html body .rd-head{margin:0 34px 14px 0;}
 html body .rd-head h2{margin:0 0 4px !important;font-size:1.15rem;}

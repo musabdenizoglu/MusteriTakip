@@ -567,7 +567,7 @@ window.mtHide = function (el, hide) {
         document.addEventListener('click', function (e) {
             var img = e.target.closest('[data-zoom]');
             if (!img) return;
-            var th = img.closest('.thumb');
+            var th = img.closest('.thumb, .rd-img');
             openImg(img.src, (th && th.dataset.note || '').trim(), (th && th.dataset.note2 || '').trim());
         });
         modal.addEventListener('click', function (e) {

@@ -56,7 +56,7 @@
                 var search = (it.CustName + " " + it.Model + " " + it.Kind + " " + it.Code + " " + it.CustCode + " " + Fmt.Date(it.Date) + " " + it.Date.ToString("yyyy-MM-dd") + " " + Fmt.EditSearch(it.EditedAt)).ToLower(Fmt.Tr);
                 if (it.Ev == "rec")
                 {
-                    <div class="rec-row home-rec-row has-detail" tabindex="0" data-kb="1" role="button" data-s="@search" data-href="@detailsUrl/@it.CustomerId#rec-@it.RecordId">
+                    <div class="rec-row home-rec-row has-detail" tabindex="0" data-kb="1" role="button" data-s="@search" data-rec="@it.RecordId" data-href="@detailsUrl/@it.CustomerId#rec-@it.RecordId">
                         <div class="thumb@(it.Image != null ? " clickable" : "")" data-note="@it.Note" data-note2="@it.EditNote">@if (it.Image != null)
                             {<img src="@it.Image" alt="" data-zoom data-caption="@it.CustName · @it.Model">}
                             else
@@ -110,12 +110,12 @@
                     }
                     var search = (it.CustName + " " + it.Model + " " + it.Code + " " + it.Kind + " " + (it.Ev == "exp" ? "gider " : it.Ev == "pay" ? "ödeme " : "") + Fmt.Date(it.Date) + " " + it.Date.ToString("yyyy-MM-dd") + " " + Fmt.EditSearch(it.EditedAt)).ToLower(Fmt.Tr);
                     var href = it.Ev == "exp" ? Url.Action("Index", "Expenses") : $"{detailsUrl}/{it.CustomerId}";
-                    <li class="tl-item @it.Ev" data-s="@search" data-href="@href">
+                    <li class="tl-item @it.Ev" data-s="@search" data-rec="@(it.Ev == "rec" ? it.RecordId : null)" data-href="@href">
                         <i class="tl-dot"></i>
                         @if (it.Ev == "rec")
                         {
                             <div class="tl-body"><b>@(string.IsNullOrEmpty(it.Model) ? "—" : it.Model)</b>@if (it.Kind != "")
-                                {<text> </text><span class="tl-tag">@it.Kind</span>}<small>@it.CustName · @Fmt.Date(it.Date)@(it.Code != "" ? " · " + it.Code : "")</small></div>
+                                {<text> </text><span class="tl-tag">@it.Kind</span>}<small><span class="tl-cust" title="Müşteri sayfasını aç" data-href="@detailsUrl/@it.CustomerId">@it.CustName</span> ·@Fmt.Date(it.Date)@(it.Code != "" ? " · " + it.Code : "")</small></div>
                             <span class="tl-amt">@it.TlAmt</span>
                         }
                         else if (it.Ev == "exp")
@@ -126,7 +126,7 @@
                         }
                         else
                         {
-                            <div class="tl-body"><b>Ödeme</b> <span class="tl-tag pay">@it.TlTag</span><small>@it.CustName · @Fmt.Date(it.Date)</small></div>
+                            <div class="tl-body"><b>Ödeme</b> <span class="tl-tag pay">@it.TlTag</span><small><span class="tl-cust" title="Müşteri sayfasını aç" data-href="@detailsUrl/@it.CustomerId">@it.CustName</span> ·@Fmt.Date(it.Date)</small></div>
                             <span class="tl-amt pay">@it.TlAmt@if (it.TlAmtSub != null)
                                 {<small class="tl-amt-sub">@it.TlAmtSub</small>}</span>
                         }
@@ -137,6 +137,9 @@
         <div class="empty-note" id="homeRecentEmptyNote" style="@(Model.Recent.Count == 0 ? "" : "display:none;")"></div>
     </div>
 </div>
+<div id="rdTpls" hidden>@foreach (var it in Model.Recent.Where(i => i.Ev == "rec" && i.Rec != null))
+    {<template id="rdt-@it.RecordId"><partial name="_RecDetail" model="it.Rec" /></template>}</div>
+<partial name="_RecDetailModal" />
 
 @section Scripts {
     <script>
@@ -178,8 +181,11 @@
             btn.addEventListener('click', function () { try { localStorage.setItem('mt_home_recent', mode() === 'classic' ? 'timeline' : 'classic'); } catch (e) { } render(); });
             inp.addEventListener('input', render);
             list.addEventListener('click', function (e) {
-                if (e.target.closest('.thumb.clickable')) return; // resim büyütme
-                var c = e.target.closest('[data-href]'); if (c) location.href = c.dataset.href;
+                if (e.target.closest('.thumb.clickable, .note-info')) return; // resim büyütme / not
+                var c = e.target.closest('[data-href]'); if (!c) return;
+                // Sipariş satırı: ayrıntı penceresi açılır (müşteri adına tıklamak müşteri sayfasına gider)
+                if (c.dataset.rec && window.mtRecDetail && window.mtRecDetail(c.dataset.rec)) return;
+                location.href = c.dataset.href;
             });
             document.querySelectorAll('.m-stat[data-href]').forEach(function (s) { s.addEventListener('click', function () { location.href = s.dataset.href; }); });
             render();

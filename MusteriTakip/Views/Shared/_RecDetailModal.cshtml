@@ -1,0 +1,27 @@
+@* Sipariş ayrıntı penceresi (HTML: #recDetail). İçerik #rdTpls içindeki <template id="rdt-{id}"> şablonlarından gelir. *@
+<style>
+    /* Masrafa kadar (masraf dahil) girdiler daha doygun; masraf alt kalemleri (– cila…), Fiyat ve notlar aynı kalır */
+    #recDetail .rd-list > div:not(.rd-exp-sub):not(.rd-price):not(.rd-note) dt { color: #1f2937 !important; font-weight: 500; }
+    #recDetail .rd-list > div:not(.rd-exp-sub):not(.rd-price):not(.rd-note) dd { color: #111827 !important; font-weight: 700; }
+    @@media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) #recDetail .rd-list > div:not(.rd-exp-sub):not(.rd-price):not(.rd-note) dt { color: #e5e7eb !important; }
+        :root:not([data-theme="light"]) #recDetail .rd-list > div:not(.rd-exp-sub):not(.rd-price):not(.rd-note) dd { color: #fff !important; }
+    }
+    :root[data-theme="dark"] #recDetail .rd-list > div:not(.rd-exp-sub):not(.rd-price):not(.rd-note) dt { color: #e5e7eb !important; }
+    :root[data-theme="dark"] #recDetail .rd-list > div:not(.rd-exp-sub):not(.rd-price):not(.rd-note) dd { color: #fff !important; }
+</style>
+<div class="confirm-modal" id="recDetail"><div class="confirm-card rd-card" role="dialog" aria-modal="true" aria-label="Sipariş ayrıntıları"><button type="button" class="x-close" id="rdX" aria-label="Kapat">✕</button><div id="rdContent"></div></div></div>
+<script>
+    (function () {
+        var m = document.getElementById('recDetail'), box = document.getElementById('rdContent');
+        function close() { m.classList.remove('open'); box.innerHTML = ''; }
+        window.mtRecDetail = function (id) {
+            var t = document.getElementById('rdt-' + id);
+            if (!t) return false;
+            box.innerHTML = t.innerHTML; m.classList.add('open'); return true;
+        };
+        document.getElementById('rdX').addEventListener('click', close);
+        m.addEventListener('click', function (e) { if (e.target === m) close(); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && m.classList.contains('open') && !document.querySelector('.img-modal.open')) close(); });
+    })();
+</script>

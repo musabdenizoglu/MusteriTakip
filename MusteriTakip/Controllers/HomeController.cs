@@ -84,7 +84,7 @@ public class HomeController : Controller
                 var kind = Ui.RecKind(r);
                 items.Add(new RecentItem
                 {
-                    Ev = "rec", CustomerId = c.Id, RecordId = r.Id, CustName = c.Name, Date = r.Date,
+                    Ev = "rec", CustomerId = c.Id, RecordId = r.Id, Rec = r, CustName = c.Name, Date = r.Date,
                     CreatedAt = r.CreatedAt, EditedAt = r.EditedAt,
                     SortAt = r.UpdatedAt is { } u && u > r.CreatedAt ? u : r.CreatedAt,
                     Image = r.ImagePath, Note = r.Note, EditNote = r.EditNote, Code = r.Code ?? "", CustCode = cc, Model = r.Model,

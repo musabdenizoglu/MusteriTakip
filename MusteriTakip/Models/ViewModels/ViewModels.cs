@@ -57,6 +57,8 @@ public class RecentItem
     public string Ev { get; set; } = "rec";
     public int? CustomerId { get; set; }
     public int? RecordId { get; set; }
+    /// <summary>Sipariş satırında ayrıntı penceresi için kaydın kendisi.</summary>
+    public OrderRecord? Rec { get; set; }
     public string CustName { get; set; } = "";
     public DateOnly Date { get; set; }
     public DateTime CreatedAt { get; set; }

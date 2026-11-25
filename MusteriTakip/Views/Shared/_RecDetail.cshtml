@@ -1,0 +1,69 @@
+@model OrderRecord
+@* Sipariş ayrıntı penceresinin içeriği (HTML: openRecDetail). Satıra tıklanınca #recDetail içine kopyalanır. *@
+@{
+    var r = Model;
+    var kind = Ui.RecKind(r);
+    string G3(decimal v) => v.ToString("N3", Fmt.Tr) + " gr";
+    string Nm(decimal v) => v.ToString("#,##0.##", Fmt.Tr);
+    var specs = new List<(string l, string v)>();
+    if (r.MumGram is { } a) specs.Add(("Mum (gr)", G3(a)));
+    if (r.MumIscilik is { } b) specs.Add(("Mum ($)", Fmt.Usd(b)));
+    if (r.GumusGram is { } c2) specs.Add(("Gümüş (gr)", G3(c2)));
+    if (r.GumusUsd is { } d) specs.Add(("Gümüş ($)", Fmt.Usd(d)));
+    if (r.AltinGram is { } e) specs.Add(("Altın (gr)", Nm(e) + " gr"));
+    if (r.AltinMilyem is { } f) specs.Add(("Altın Milyem", Nm(f)));
+    if (r.AltinCikis is { } g) specs.Add(("Altın Çıkış (gr)", G3(g)));
+    if (r.AltinIscilik is { } h) specs.Add(("Altın ($)", Fmt.Usd(h)));
+    if (r.Cizim is { } i) specs.Add(("Çizim ($)", Fmt.Usd(i)));
+    var exps = r.Expenses.Where(x => x.Amount != 0 || !string.IsNullOrWhiteSpace(x.Description)).ToList();
+    var exT = r.Expenses.Sum(x => x.Amount);
+
+    var snap = new List<string>();
+    if (r.SnapUsdTry > 0) snap.Add("$ " + r.SnapUsdTry.Value.ToString("N2", Fmt.Tr) + " ₺");
+    if (r.SnapGramAltinTl > 0) snap.Add("Altın " + Math.Round(r.SnapGramAltinTl.Value, MidpointRounding.AwayFromZero).ToString("N0", Fmt.Tr) + " ₺");
+    string F4(decimal v) => v.ToString("#,##0.00##", Fmt.Tr);
+    var calc = new List<string>();
+    if (r.SnapMumGrFiyat is { } m1) calc.Add("Mum gr " + F4(m1) + " $");
+    if (r.SnapGumusGrFiyat is { } m2) calc.Add("Gümüş gr " + F4(m2) + " $");
+    if (r.SnapAltinGrFiyat is { } m3) calc.Add("Altın işçilik " + F4(m3) + " $");
+}
+<div class="rd-head">
+    <h2 class="rd-title">@(string.IsNullOrEmpty(r.Code) ? "" : r.Code + " · ")@r.Model</h2>
+    <div class="rd-sub"><span>@r.Customer?.Name</span>@if (r.Customer != null)
+        {<span class="rd-dot">·</span>}<span>@Fmt.Date(r.Date)</span>@if (kind != "")
+        {<span class="kind-tag@(Ui.RecKindCls(r))">@kind</span>}</div>
+</div>
+<div class="rd-body">
+    <div class="rd-img@(r.ImagePath != null ? " zoomable" : "")" data-note="@r.Note" data-note2="@r.EditNote">@if (r.ImagePath != null)
+        {<img src="@r.ImagePath" alt="" data-zoom data-caption="@r.Model">}
+        else
+        {@Html.Raw(Ui.PhRing)}</div>
+    <div class="rd-info">
+        <dl class="rd-list">
+            @foreach (var s in specs)
+            {
+                <div><dt>@s.l</dt><dd>@s.v</dd></div>
+            }
+            @if (exT > 0)
+            {
+                <div><dt>Masraf ($)</dt><dd>@Fmt.Usd(exT)</dd></div>
+                @foreach (var x in exps)
+                {
+                    <div class="rd-exp-sub"><dt>– @(string.IsNullOrWhiteSpace(x.Description) ? "Masraf" : x.Description)</dt><dd>@Fmt.Usd(x.Amount)</dd></div>
+                }
+            }
+            @if (r.Price != null)
+            {
+                <div class="rd-price rd-sum-first"><dt>Fiyat</dt><dd>@Fmt.Usd(r.Price)</dd></div>
+            }
+            @if (snap.Count > 0)
+            {
+                <div class="rd-note">Kayıt günü: @string.Join(" · ", snap)</div>
+            }
+            @if (calc.Count > 0)
+            {
+                <div class="rd-note">Hesaplandığı ayarlar@(r.SnapDate != null ? " (" + Fmt.Date(r.SnapDate) + ")" : ""): @string.Join(" · ", calc)</div>
+            }
+        </dl>
+    </div>
+</div>
