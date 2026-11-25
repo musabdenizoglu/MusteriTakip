@@ -22,7 +22,8 @@ public enum OdemeTuru
     Yok = 0,   // Kalıp ödemesi: sadece dolar tutarı
     Gram = 1,  // Has / hurda altın (gr) → altın hesabına
     Usd = 2,   // Dolar ($)
-    Tl = 3     // Türk Lirası (₺) → kur ile dolara çevrilir
+    Tl = 3,    // Türk Lirası (₺) → kur ile dolara çevrilir
+    Eur = 4    // Euro (€) → €/$ paritesi ile dolara çevrilir
 }
 
 public class AppUser
@@ -172,7 +173,8 @@ public class Payment : ISoftDelete
     /// <summary>Tutar ($).</summary>
     [Precision(18, 2)] public decimal Amount { get; set; }
 
-    public IslemTuru Kind { get; set; } = IslemTuru.Altin;
+    /// <summary>Boş: nakit hesabına işlenen $/₺/€ ödeme (HTML'de etiket "Nakit-$/₺/€").</summary>
+    public IslemTuru? Kind { get; set; } = IslemTuru.Altin;
 
     public OdemeTuru PayType { get; set; } = OdemeTuru.Yok;
 
@@ -187,6 +189,9 @@ public class Payment : ISoftDelete
     [Precision(18, 2)] public decimal? Tl { get; set; }
     /// <summary>Dolar kuru (₺).</summary>
     [Precision(18, 4)] public decimal? Rate { get; set; }
+    /// <summary>Euro tutarı (€) ve €/$ paritesi — PayType = Eur.</summary>
+    [Precision(18, 2)] public decimal? Eur { get; set; }
+    [Precision(18, 4)] public decimal? EurRate { get; set; }
 
     [Precision(18, 2)] public decimal? HurdaGr { get; set; }
     [Precision(18, 0)] public decimal? HurdaMil { get; set; }

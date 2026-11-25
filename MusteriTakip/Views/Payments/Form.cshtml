@@ -3,28 +3,35 @@
     var isNew = Model.Id == null;
     ViewData["Title"] = isNew ? "Ödeme Ekle" : "Ödemeyi Düzenle";
     var pickCustomer = isNew && Model.FromKasa && !(Model.CustomerId > 0);
+    var back = Model.CustomerId > 0 ? Url.Action("Details", "Customers", new { id = Model.CustomerId, tab = "cari" }) : Url.Action("Index", "Kasa");
+    var hasGold = Model.GoldRemaining > 0.0005m;
+    // Düzenlemede görünen kutuya dolacak değerler (tek ödeme türü dolu olur)
+    var usdIn = Model.PayType == "usd" && Model.Amount > 0 ? Fmt.Input(Model.Amount.Value) : "";
 }
-@if (Model.CustomerId > 0)
-{
-    <span class="back-pair"><a class="btn secondary" asp-controller="Customers" asp-action="Details" asp-route-id="@Model.CustomerId" asp-route-tab="cari">← @Model.CustomerName</a></span>
-}
-else
-{
-    <span class="back-pair"><a class="btn secondary" asp-controller="Kasa" asp-action="Index">← Genel Kasa</a></span>
-}
-
-<form method="post" asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@Model.Id" class="card pay-card" id="payForm" data-pay-form
-      data-gold-remaining="@Fmt.Input(Model.GoldRemaining)" novalidate>
-    <div class="pay-head"><h2>@ViewData["Title"]</h2></div>
+@* Görünüm referans musteritakip.html → #payModal (#dnFields: tür seçimsiz ödeme kartı).
+   Görünen kutular (data-dn) kullanıcıya aittir; sunucuya giden alanlar gizlidir ve site.js doldurur. *@
+<div class="confirm-modal open" id="payModal" data-standalone data-back="@back">
+<form method="post" asp-controller="Payments" asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@Model.Id" class="confirm-card pay-card" id="payForm" data-dn-pay
+      role="dialog" aria-modal="true" aria-labelledby="payModalTitle"
+      data-gold-remaining="@Fmt.Input(Model.GoldRemaining)" data-prev="@Fmt.Input(Model.PrevBalance)" novalidate>
+    <div class="pay-head">
+        <h2 id="payModalTitle">@ViewData["Title"]</h2>
+        <button type="button" class="x-close" aria-label="Kapat">✕</button>
+    </div>
     @if (!pickCustomer)
     {
         <p class="pay-cust">@Model.CustomerName</p>
         <input type="hidden" asp-for="CustomerId" />
     }
     <input type="hidden" asp-for="FromKasa" />
-    <div asp-validation-summary="All" class="error"></div>
+    <input type="hidden" name="ReturnUrl" value="@Model.ReturnUrl" data-return-url />
+    <input type="hidden" asp-for="Kind" />
+    <input type="hidden" asp-for="Method" />
+    <input type="hidden" asp-for="PayType" data-dn-type />
+    <input type="hidden" asp-for="Amount" data-dn-amount />
+    <input type="hidden" name="CountAsCash" value="@(Model.CountAsCash ? "true" : "false")" data-dn-cash />
 
-    <div class="pm-grid">
+    <div class="pm-grid dn-grid">
         @if (pickCustomer)
         {
             <div class="field pm-full">
@@ -38,97 +45,65 @@ else
                 </datalist>
             </div>
         }
-        <div class="field">
-            <label asp-for="Kind">İşlem türü</label>
-            <select asp-for="Kind" data-pm-kind>
-                <option value="Altın">Altın</option>
-                <option value="Kalıp">Kalıp</option>
-            </select>
-        </div>
-        <div class="field" data-show-kind="Altın">
-            <label asp-for="PayType">Ödeme türü</label>
-            <select asp-for="PayType" data-pm-type>
-                <option value="gr">Has (gr)</option>
-                <option value="hurda">Hurda (gr)</option>
-                <option value="usd">Dolar ($)</option>
-                <option value="tl">Türk Lirası (₺)</option>
-            </select>
-        </div>
-        <div class="field" data-hide-type="hurda">
-            <label asp-for="Method">Ödeme</label>
-            <select asp-for="Method">
-                <option value="Nakit">Nakit</option>
-                <option value="Havale / EFT">Havale / EFT</option>
-                <option value="Kredi kartı">Kredi kartı</option>
-            </select>
-        </div>
-        <div class="field">
-            <label asp-for="Date">Tarih</label>
-            <input asp-for="Date" type="date" />
-        </div>
+        <div class="field" data-g="usd"><label for="dnUsd">Tutar ($)</label><input type="number" id="dnUsd" min="0" step="0.01" placeholder="0,00" value="@usdIn" data-dn="usd" /></div>
+        <div class="field" data-g="tl"><label for="dnTl">Tutar (₺)</label><input type="number" id="dnTl" name="Tl" min="0" step="0.01" placeholder="0,00" value="@(Model.PayType == "tl" && Model.Tl > 0 ? Fmt.Input(Model.Tl.Value) : "")" data-dn="tl" /></div>
+        <div class="field" data-g="eur"><label for="dnEur">Tutar (€)</label><input type="number" id="dnEur" name="Eur" min="0" step="0.01" placeholder="0,00" value="@(Model.PayType == "eur" && Model.Eur > 0 ? Fmt.Input(Model.Eur.Value) : "")" data-dn="eur" /></div>
 
-        <div class="hurda-box pm-full" data-show-type="hurda">
-            <div class="wcell"><label asp-for="HurdaGr">Hurda (gr)</label><input asp-for="HurdaGr" type="number" min="0" step="0.01" placeholder="0,00" data-pm="hurdaGr" /></div>
-            <div class="wcell"><label asp-for="HurdaMil">Milyem</label><input asp-for="HurdaMil" type="number" min="0" max="1000" step="1" placeholder="585" data-pm="hurdaMil" /></div>
-            <div class="wcell hurda-has"><label>Has karşılığı</label><b id="pmHasShow">—</b></div>
-        </div>
+        <div class="field pm-full" data-g="gr"><label for="dnGram">Altın (gr)</label><input type="number" id="dnGram" name="Gram" min="0" step="0.001" placeholder="0,000" value="@(Model.PayType == "gr" && Model.Gram > 0 ? Fmt.Input(Model.Gram.Value) : "")" data-dn="gr" /></div>
 
-        <div class="field" data-show-type="gr">
-            <label asp-for="Gram">Has altın (gr)</label>
-            <input asp-for="Gram" type="number" min="0" step="0.001" placeholder="0,000" data-pm="gram" />
-        </div>
-        <div class="field" data-show-type="gr hurda">
-            <label asp-for="GoldPrice">Altın fiyatı ($/gr)</label>
-            <input asp-for="GoldPrice" type="number" min="0" step="0.01" placeholder="0,00" data-pm="goldPrice" />
-            <button type="button" class="btn secondary sm live-rate-btn" data-live-gold-usd>⟳ Canlı gr/$</button>
-        </div>
+        <div class="field" data-g="hurda"><label for="dnHurdaGr">Hurda (gr)</label><input type="number" id="dnHurdaGr" name="HurdaGr" min="0" step="0.01" placeholder="0,00" value="@(Model.PayType == "hurda" && Model.HurdaGr > 0 ? Fmt.Input(Model.HurdaGr.Value) : "")" data-dn="hurda" /></div>
+        <div class="field" data-g="hurda"><label for="dnHurdaMil">Milyem</label><input type="number" id="dnHurdaMil" name="HurdaMil" min="0" max="1000" step="1" placeholder="585" value="@(Model.PayType == "hurda" && Model.HurdaMil > 0 ? Fmt.Input(Model.HurdaMil.Value) : "")" data-dn="hurda" /></div>
+        <div class="field"><label for="dnHas">Has karşılığı</label><input type="text" id="dnHas" readonly tabindex="-1" placeholder="—" /></div>
 
-        <div class="field" data-show-type="tl">
-            <label asp-for="Tl">Tutar (₺)</label>
-            <input asp-for="Tl" type="number" min="0" step="0.01" placeholder="0,00" data-pm="tl" />
-        </div>
-        <div class="field" data-show-type="tl usd">
-            <label asp-for="Rate">Dolar kuru (₺)</label>
-            <input asp-for="Rate" type="number" min="0" step="0.0001" placeholder="Otomatik" data-pm="rate" />
-            <button type="button" class="btn secondary sm live-rate-btn" data-live-rate>⟳ Güncel kur</button>
-        </div>
+        <div class="field" id="dnGoldPWrap" hidden><label for="dnGoldP">Altın fiyatı ($/gr)</label><input type="number" id="dnGoldP" name="GoldPrice" min="0" step="0.01" placeholder="örn. 130,00" value="@(Model.GoldPrice > 0 ? Fmt.Input(Model.GoldPrice.Value) : "")" /></div>
+        <div class="field" id="dnRateWrap" hidden><label for="dnRate">$/TL kuru</label><input type="number" id="dnRate" name="Rate" min="0" step="0.0001" placeholder="örn. 41,25" value="@(Model.Rate > 0 ? Fmt.Input(Model.Rate.Value) : "")" /></div>
+        <div class="field" id="dnEurRateWrap" hidden><label for="dnEurRate">€/$ paritesi</label><input type="number" id="dnEurRate" name="EurRate" min="0" step="0.0001" placeholder="örn. 1,1600" value="@(Model.EurRate > 0 ? Fmt.Input(Model.EurRate.Value) : "")" /></div>
 
-        <div class="field pm-full">
-            <label asp-for="Amount">Tutar ($)</label>
-            <input asp-for="Amount" type="number" min="0" step="0.01" placeholder="0,00" data-pm="amount" />
-            <p class="field-hint" id="pmCalc"></p>
-        </div>
-
-        @if (Model.GoldRemaining > 0.0005m)
+        @if (hasGold)
         {
-            <div class="gold-close pm-full" data-show-kind="Altın" data-show-type="usd tl">
-                <div class="gc-info">Kalan altın borcu: <b>@Fmt.Gr(Model.GoldRemaining)</b></div>
-                <label class="gc-chk"><input type="checkbox" asp-for="CountAsCash" data-pm-cash /> <span>Tutar nakit (işçilik) borcuna sayılsın</span></label>
-                <div class="field" data-goldeq>
-                    <label asp-for="GoldEqPrice">Altına çevirme fiyatı ($/gr)</label>
-                    <input asp-for="GoldEqPrice" type="number" min="0" step="0.01" placeholder="0,00" data-pm="goldEqPrice" />
-                    <button type="button" class="btn secondary sm live-rate-btn" data-live-gold-usd="GoldEqPrice">⟳ Canlı gr/$</button>
-                    <p class="field-hint" id="pmEq"></p>
+            <div class="pm-full gold-close" id="pmGoldClose">
+                <label class="gc-chk"><input type="checkbox" id="dnGoldChk" @(Model.CountAsCash ? "" : "checked") /> <span id="dnGoldText">Bu ödeme altın borcuna sayılsın</span></label>
+                <div class="gc-info" id="pmGoldCloseInfo">Kalan altın borcu: <b>@Fmt.Gr(Model.GoldRemaining)</b></div>
+                <div class="gc-row">
+                    <button type="button" class="btn secondary sm" id="pmGoldCloseBtn">Altın borcunu nakit kapat</button>
+                    <div class="gc-price"><label for="pmGoldEqPriceIn">Altın fiyatı ($/gr)</label><input type="number" id="pmGoldEqPriceIn" name="GoldEqPrice" min="0" step="0.01" placeholder="örn. 130,00" value="@(Model.GoldEqPrice > 0 ? Fmt.Input(Model.GoldEqPrice.Value) : "")" /></div>
                 </div>
             </div>
         }
-        else
-        {
-            <input type="hidden" name="CountAsCash" value="true" />
-        }
 
+        <div class="field dn-date"><label asp-for="Date">Tarih</label><input asp-for="Date" type="date" title="Boş bırakılırsa bugünün tarihi yazılır" /></div>
         <div class="field pm-full">
-            <label asp-for="Note">Not</label>
-            <input asp-for="Note" placeholder="İsteğe bağlı" />
+            <label asp-for="Note">Açıklama</label>
+            <div class="has-mic"><input asp-for="Note" spellcheck="true" lang="tr" autocomplete="off" placeholder="Örn. Yüzük A12 için kapora" /><button type="button" class="mic-btn" title="Sesle yaz (Türkçe)" aria-label="Sesle yaz (Türkçe)"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z" /></svg></button></div>
         </div>
     </div>
 
+    <div class="pm-side">
+        <aside class="pm-sum" id="pmSum">
+            <div class="ps-head">Hesap Sonucu</div>
+            <div class="ps-row"><span>Önceki bakiye</span><b id="psPrev">—</b></div>
+            <div class="ps-row"><span>Bu ödeme</span><b id="psPay">—</b></div>
+            <div class="ps-foot" id="psRestRow"><span>Kalan nakit</span><b id="psRest">—</b></div>
+            @if (hasGold)
+            {
+                <div id="psGold">
+                    <div class="ps-row"><span>Önceki altın borcu</span><b>@Fmt.Gr(Model.GoldRemaining)</b></div>
+                    <div class="ps-row"><span>Bu ödeme (altın)</span><b id="psGPay">—</b></div>
+                    <div class="ps-foot ps-gfoot" id="psGRestRow"><span>Kalan altın</span><b id="psGRest">@Fmt.Gr(Model.GoldRemaining)</b></div>
+                </div>
+            }
+        </aside>
+    </div>
+
+    <div asp-validation-summary="All" class="pm-error error" id="pmError"></div>
+
     <div class="confirm-actions">
-        @if (!isNew)
+        @if (isNew && Model.CustomerId > 0 && Model.PrevBalance > 0)
         {
-            <span class="spacer"></span>
+            <button type="button" class="btn secondary" id="pmCloseBal" title="Müşterinin kalan bakiyesinin tamamını tutar alanına yazar">Kalanı tahsil et</button>
         }
-        <a class="btn secondary" href="javascript:history.back()">Vazgeç</a>
+        <button type="button" class="btn secondary" data-close>Vazgeç</button>
         <button type="submit" class="btn">Kaydet</button>
     </div>
 </form>
+</div>

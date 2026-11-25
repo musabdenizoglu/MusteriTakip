@@ -9,6 +9,7 @@
     var p = m.Pay; var r = m.Rec; var x = m.Exp;
     var isTlPay = p != null && p.PayType == OdemeTuru.Tl && (p.Tl ?? 0) > 0;
     var isGrPay = p != null && p.PayType == OdemeTuru.Gram && (p.Gram ?? 0) > 0;
+    var isEurPay = p != null && p.PayType == OdemeTuru.Eur && (p.Eur ?? 0) > 0;
 
     // Etiket (Altın / Kalıp / Eski borç / Hurda / Nakit-$)
     string kindTxt = r != null ? Ui.RecKind(r) : (p != null ? Fmt.KindText(p.Kind) : "");
@@ -20,15 +21,15 @@
     string? descMain = null, descSub = null, descPlain = null;
     if (p != null)
     {
-        if (p.Kind == IslemTuru.Altin && p.PayType != OdemeTuru.Yok) { descMain = Ui.PayMain(p); descSub = Ui.PaySub(p); }
+        if (p.Kind != IslemTuru.Kalip && p.PayType != OdemeTuru.Yok) { descMain = Ui.PayMain(p); descSub = Ui.PaySub(p); }
         else descPlain = Ui.PayPlainDesc(p);
     }
     else if (r != null) descPlain = r.Model;
 
     // Tutar
     var sign = type == "payment" ? "+" : (type == "expense" ? "−" : "");
-    string amtMain = isGrPay ? Fmt.Gr(p!.Gram) : (isTlPay ? Fmt.Tl(p!.Tl) : Fmt.Usd(m.AmountUsd));
-    string? amtSub = type == "expense" ? ((x?.Amount ?? 0) > 0 ? Fmt.Tl(x!.Amount) : null) : (isTlPay ? Fmt.Usd(p!.Amount) : null);
+    string amtMain = isGrPay ? Fmt.Gr(p!.Gram) : (isTlPay ? Fmt.Tl(p!.Tl) : (isEurPay ? Fmt.Eur(p!.Eur) : Fmt.Usd(m.AmountUsd)));
+    string? amtSub = type == "expense" ? ((x?.Amount ?? 0) > 0 ? Fmt.Tl(x!.Amount) : null) : (isTlPay || isEurPay ? Fmt.Usd(p!.Amount) : null);
     string? goldLine = r != null ? Ui.GoldCalc(r) : (p != null ? Ui.PayAcct(p) : null);
 
     var key = type + ":" + m.Id;
@@ -70,7 +71,7 @@
         {<span class="tag-wrap"><span class="kind-tag lead@(kindCls)">@(hurda ? "Hurda" : kindTxt)</span>@if (rate != null)
                 {<small class="tag-rate">kur @Ui.Rate(rate.Value)</small>}</span>}
         else if (p != null && p.PayType != OdemeTuru.Gram)
-        {<span class="tag-wrap"><span class="kind-tag lead k-nakit">@(p.PayType == OdemeTuru.Tl ? "Nakit-₺" : p.PayType == OdemeTuru.Usd ? "Nakit-$" : "Nakit")</span>@if (rate != null && p.PayType != OdemeTuru.Usd)
+        {<span class="tag-wrap"><span class="kind-tag lead k-nakit">@(p.PayType == OdemeTuru.Tl ? "Nakit-₺" : p.PayType == OdemeTuru.Eur ? "Nakit-€" : p.PayType == OdemeTuru.Usd ? "Nakit-$" : "Nakit")</span>@if (rate != null && p.PayType != OdemeTuru.Usd)
                 {<small class="tag-rate">kur @Ui.Rate(rate.Value)</small>}</span>}</span>
     @if (type == "expense")
     {
@@ -118,11 +119,11 @@
                 <form method="post" asp-controller="Orders" asp-action="Delete" asp-route-id="@m.Id" asp-route-returnUrl="@returnUrl" class="inline" data-confirm="Bu sipariş çöp kutusuna taşınsın mı?"><button class="del" type="submit" title="Sil" aria-label="Sil">✕</button></form>
                 break;
             case MovementType.Debt:
-                <button type="button" class="edit" data-href="@Url.Action("EditDebt", "Orders", new { id = m.Id })" title="Düzenle" aria-label="Düzenle">✎</button>
+                <button type="button" class="edit" data-modal data-href="@Url.Action("EditDebt", "Orders", new { id = m.Id })" title="Düzenle" aria-label="Düzenle">✎</button>
                 <form method="post" asp-controller="Orders" asp-action="Delete" asp-route-id="@m.Id" asp-route-returnUrl="@returnUrl" class="inline" data-confirm="Bu borç kaydı çöp kutusuna taşınsın mı?"><button class="del" type="submit" title="Sil" aria-label="Sil">✕</button></form>
                 break;
             case MovementType.Payment:
-                <button type="button" class="edit" data-href="@Url.Action("Edit", "Payments", new { id = m.Id })" title="Düzenle" aria-label="Düzenle">✎</button>
+                <button type="button" class="edit" data-modal data-href="@Url.Action("Edit", "Payments", new { id = m.Id })" title="Düzenle" aria-label="Düzenle">✎</button>
                 <form method="post" asp-controller="Payments" asp-action="Delete" asp-route-id="@m.Id" asp-route-returnUrl="@returnUrl" class="inline" data-confirm="Bu ödeme çöp kutusuna taşınsın mı?"><button class="del" type="submit" title="Sil" aria-label="Sil">✕</button></form>
                 break;
             default:

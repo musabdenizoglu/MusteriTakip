@@ -197,10 +197,12 @@ public class OrdersController : Controller
             Date = Dates.ParseOrToday(vm.Date),
             Price = Math.Round(vm.Amount!.Value, 2),
             Note = vm.Note?.Trim(),
+            Kind = vm.Kind == "Kalıp" ? IslemTuru.Kalip : IslemTuru.Altin,
             CreatedAt = DateTime.UtcNow
         });
         await _db.SaveChangesAsync();
         TempData["Ok"] = "Borç eklendi.";
+        if (!string.IsNullOrEmpty(vm.ReturnUrl) && Url.IsLocalUrl(vm.ReturnUrl)) return Redirect(vm.ReturnUrl);
         return RedirectToAction("Details", "Customers", new { id = c.Id, tab = "cari" });
     }
 
@@ -211,7 +213,7 @@ public class OrdersController : Controller
         return View("DebtForm", new DebtFormVm
         {
             Id = r.Id, CustomerId = r.CustomerId, CustomerName = r.Customer?.Name ?? "",
-            Description = r.Model, Amount = r.Price, Date = Fmt.InputDate(r.Date), Note = r.Note
+            Description = r.Model, Amount = r.Price, Date = Fmt.InputDate(r.Date), Note = r.Note, Kind = Fmt.KindText(r.Kind)
         });
     }
 
@@ -225,8 +227,10 @@ public class OrdersController : Controller
         r.Price = Math.Round(vm.Amount!.Value, 2);
         r.Date = Dates.ParseOrToday(vm.Date);
         r.Note = vm.Note?.Trim();
+        if (!string.IsNullOrEmpty(vm.Kind)) r.Kind = vm.Kind == "Kalıp" ? IslemTuru.Kalip : IslemTuru.Altin;
         r.EditedAt = r.UpdatedAt = DateTime.UtcNow; // borç düzenlemesi soru sormadan en üste çıkar (önceki davranış)
         await _db.SaveChangesAsync();
+        if (!string.IsNullOrEmpty(vm.ReturnUrl) && Url.IsLocalUrl(vm.ReturnUrl)) return Redirect(vm.ReturnUrl);
         return RedirectToAction("Details", "Customers", new { id = r.CustomerId, tab = "cari" });
     }
 

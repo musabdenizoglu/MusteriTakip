@@ -65,7 +65,11 @@ BEGIN
     EXEC('UPDATE OrderRecords SET UpdatedAt = EditedAt');
 END
 IF COL_LENGTH('OrderRecords', 'EditNote') IS NULL
-    ALTER TABLE OrderRecords ADD EditNote nvarchar(2000) NULL;");
+    ALTER TABLE OrderRecords ADD EditNote nvarchar(2000) NULL;
+IF COL_LENGTH('Payments', 'Eur') IS NULL
+    ALTER TABLE Payments ADD Eur decimal(18,2) NULL, EurRate decimal(18,4) NULL;
+IF COLUMNPROPERTY(OBJECT_ID('Payments'), 'Kind', 'AllowsNull') = 0
+    ALTER TABLE Payments ALTER COLUMN Kind int NULL;");
     }
 }
 

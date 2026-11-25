@@ -82,7 +82,7 @@
             <div class="rec-btns">
                 <a class="btn save-record" id="newRecordBtn" data-modal asp-controller="Orders" asp-action="Create" asp-route-customerId="@c.Id">+ Yeni Sipariş</a>
                 <button type="button" class="btn secondary save-record" id="openCariBtn">Hesap hareketleri</button>
-                <a class="btn secondary save-record" id="debtAddBtn" asp-controller="Orders" asp-action="AddDebt" asp-route-customerId="@c.Id">+ Borç Ekle</a>
+                <a class="btn secondary save-record" id="debtAddBtn" data-modal asp-controller="Orders" asp-action="AddDebt" asp-route-customerId="@c.Id">+ Borç Ekle</a>
             </div>
             <div class="cust-tools">
                 <a class="btn secondary sm wa-btn" id="waBtn" href="@waUrl" target="_blank" rel="noopener">WhatsApp ile hesap özeti</a>
@@ -194,8 +194,8 @@
                 <div class="records payment-section">
                     <div class="records-head"><h3>Hesap hareketleri: fiyat ve ödeme geçmişi</h3><button type="button" class="btn secondary sm" id="closeCariBtn">← Kayıtlara Dön</button></div>
                     <div class="cari-actions">
-                        <a class="qa" id="openPayModalBtn" asp-controller="Payments" asp-action="Create" asp-route-customerId="@c.Id"><span class="qa-i k-purple"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2" /><circle cx="12" cy="12.5" r="2.5" /></svg></span>Ödeme Ekle</a>
-                        <a class="qa" id="debtAddBtn2" asp-controller="Orders" asp-action="AddDebt" asp-route-customerId="@c.Id"><span class="qa-i k-orange"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg></span>Borç Ekle</a>
+                        <a class="qa" id="openPayModalBtn" data-modal asp-controller="Payments" asp-action="Create" asp-route-customerId="@c.Id"><span class="qa-i k-purple"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2" /><circle cx="12" cy="12.5" r="2.5" /></svg></span>Ödeme Ekle</a>
+                        <a class="qa" id="debtAddBtn2" data-modal asp-controller="Orders" asp-action="AddDebt" asp-route-customerId="@c.Id"><span class="qa-i k-orange"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg></span>Borç Ekle</a>
                         <button type="button" class="qa" id="fxRiskBtn" title="Açık borcun kur karşılığı" aria-label="Açık borcun kur karşılığı"><span class="qa-i k-orange" style="font-size:1.25rem;line-height:1">💱</span><span class="qa-t">Kur Riski</span></button>
                     </div>
                     <div id="histSelBar" class="hist-selbar" @(Model.History.Count == 0 ? "hidden" : null)>

@@ -191,6 +191,10 @@ public class LedgerService
         {
             bits.Add($"{Fmt.Tl(p.Tl)} ÷ {Fmt.Rate(p.Rate)}");
         }
+        else if (p.PayType == OdemeTuru.Eur)
+        {
+            bits.Add($"{Fmt.Eur(p.Eur)} × {(p.EurRate ?? 0).ToString("0.####", Fmt.Tr)} $/€");
+        }
         else if (p.PayType == OdemeTuru.Usd)
         {
             bits.Add("Dolar");

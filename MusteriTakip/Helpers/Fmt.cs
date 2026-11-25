@@ -10,6 +10,7 @@ public static class Fmt
 
     public static string Usd(decimal? v) => (v ?? 0m).ToString("N2", Tr) + " $";
     public static string Tl(decimal? v) => (v ?? 0m).ToString("N2", Tr) + " ₺";
+    public static string Eur(decimal? v) => (v ?? 0m).ToString("N2", Tr) + " €";
     public static string Gr(decimal? v) => (v ?? 0m).ToString("N3", Tr) + " gr";
     public static string Gr2(decimal? v) => (v ?? 0m).ToString("N2", Tr) + " gr";
     public static string Num(decimal? v, int digits = 2) => v.HasValue ? v.Value.ToString("N" + digits, Tr) : "—";

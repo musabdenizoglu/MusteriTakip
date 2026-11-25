@@ -233,6 +233,9 @@ public class DebtFormVm
     public decimal? Amount { get; set; }
     public string? Date { get; set; }
     [MaxLength(2000)] public string? Note { get; set; }
+    /// <summary>"Altın", "Kalıp" ya da boş.</summary>
+    public string? Kind { get; set; }
+    public string? ReturnUrl { get; set; }
 }
 
 // ---------------- Ödeme ----------------
@@ -255,6 +258,8 @@ public class PaymentFormVm
     public decimal? GoldPrice { get; set; }
     public decimal? Tl { get; set; }
     public decimal? Rate { get; set; }
+    public decimal? Eur { get; set; }
+    public decimal? EurRate { get; set; }
     public decimal? HurdaGr { get; set; }
     public decimal? HurdaMil { get; set; }
 
@@ -267,6 +272,9 @@ public class PaymentFormVm
     [MaxLength(1000)] public string? Note { get; set; }
 
     public decimal GoldRemaining { get; set; }
+    /// <summary>Bu ödemeden önceki nakit ($) bakiye.</summary>
+    public decimal PrevBalance { get; set; }
+    public string? ReturnUrl { get; set; }
 }
 
 // ---------------- Genel Kasa ----------------

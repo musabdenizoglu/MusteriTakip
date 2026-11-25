@@ -3,25 +3,35 @@
     var isNew = Model.Id == null;
     ViewData["Title"] = isNew ? "Borç Ekle" : "Borcu Düzenle";
 }
-<span class="back-pair"><a class="btn secondary" asp-controller="Customers" asp-action="Details" asp-route-id="@Model.CustomerId" asp-route-tab="cari">← @Model.CustomerName</a></span>
-<div class="card order-card">
-    <h2>@ViewData["Title"]</h2>
-    <p class="pay-cust">@Model.CustomerName — sipariş dışında müşterinin dolar hesabına yazılan borç (eski borç, devir vb.)</p>
-    <form method="post" asp-action="@(isNew ? "AddDebt" : "EditDebt")" asp-route-id="@Model.Id">
-        <input type="hidden" asp-for="CustomerId" />
-        <label asp-for="Description">Açıklama</label>
-        <input asp-for="Description" />
-        <span class="error" asp-validation-for="Description"></span>
-        <label asp-for="Amount">Tutar ($)</label>
-        <input asp-for="Amount" type="number" min="0" step="0.01" />
-        <span class="error" asp-validation-for="Amount"></span>
-        <label asp-for="Date">Tarih</label>
-        <input asp-for="Date" type="date" />
-        <label asp-for="Note">Not</label>
-        <textarea asp-for="Note" rows="2"></textarea>
-        <div class="confirm-actions">
-            <a class="btn secondary" asp-controller="Customers" asp-action="Details" asp-route-id="@Model.CustomerId" asp-route-tab="cari">Vazgeç</a>
-            <button type="submit" class="btn">Kaydet</button>
+@* Görünüm referans musteritakip.html → #debtModal. Müşteri sayfasından data-modal ile pencere olarak açılır. *@
+<div class="confirm-modal open" id="debtModal" data-standalone data-back="@Url.Action("Details", "Customers", new { id = Model.CustomerId, tab = "cari" })">
+<form method="post" asp-controller="Orders" asp-action="@(isNew ? "AddDebt" : "EditDebt")" asp-route-id="@Model.Id" class="confirm-card pay-card order-card" id="debtForm"
+      role="dialog" aria-modal="true" aria-labelledby="debtTitle" novalidate>
+    <div class="pay-head"><h2 id="debtTitle">@ViewData["Title"]</h2><button type="button" class="x-close" aria-label="Kapat">✕</button></div>
+    <p class="pay-cust">@Model.CustomerName</p>
+    <input type="hidden" asp-for="CustomerId" />
+    <input type="hidden" name="ReturnUrl" value="@Model.ReturnUrl" data-return-url />
+    <input type="hidden" asp-for="Note" />
+    <div class="pm-grid">
+        <div class="field">
+            <label asp-for="Amount">Tutar ($)</label>
+            <input asp-for="Amount" type="number" min="0" step="0.01" placeholder="0,00" autofocus />
         </div>
-    </form>
+        <div class="field"><label asp-for="Date">Tarih</label><input asp-for="Date" type="date" /></div>
+        <div class="field">
+            <label asp-for="Kind">İşlem türü</label>
+            <select asp-for="Kind"><option value="">—</option><option value="Altın">Altın</option><option value="Kalıp">Kalıp</option></select>
+        </div>
+        <div class="field pm-full">
+            <label asp-for="Description">Açıklama</label>
+            <div class="has-mic"><input asp-for="Description" spellcheck="true" lang="tr" autocomplete="off" placeholder="Örn. Devreden bakiye, yüzük tamiri" /><button type="button" class="mic-btn" title="Sesle yaz (Türkçe)" aria-label="Sesle yaz (Türkçe)"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z" /></svg></button></div>
+        </div>
+    </div>
+    <div class="pm-side"><p class="field-hint">Siparişler borca kendiliğinden yazılır. Buraya yalnızca eski borç, tamir ücreti gibi ayrı kalemleri girin.</p></div>
+    <div asp-validation-summary="All" class="pm-error error"></div>
+    <div class="confirm-actions">
+        <button type="button" class="btn secondary" data-close>Vazgeç</button>
+        <button type="submit" class="btn">Kaydet</button>
+    </div>
+</form>
 </div>

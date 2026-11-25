@@ -52,7 +52,7 @@ public static class Ui
     {
         var cc = CustCode(c);
         if (cc == "") return "";
-        var t = IsHurda(p) ? "Hurda" : p.PayType switch { OdemeTuru.Gram => "Has", OdemeTuru.Tl => "₺", _ => "$" };
+        var t = IsHurda(p) ? "Hurda" : p.PayType switch { OdemeTuru.Gram => "Has", OdemeTuru.Tl => "₺", OdemeTuru.Eur => "€", _ => "$" };
         return cc + "-" + t;
     }
 
@@ -60,6 +60,7 @@ public static class Ui
     public static string PayBadge(Payment p) => p.PayType switch
     {
         OdemeTuru.Tl => "₺",
+        OdemeTuru.Eur => "€",
         OdemeTuru.Gram => "Au",
         _ => p.Method == "Havale / EFT" ? "H" : "$"
     };
@@ -68,6 +69,7 @@ public static class Ui
     public static string PayCls(Payment p) => p.PayType switch
     {
         OdemeTuru.Tl => "k-purple",
+        OdemeTuru.Eur => "k-eur",
         OdemeTuru.Gram => "k-orange",
         _ => p.Method == "Havale / EFT" ? "k-blue" : "k-green"
     };
@@ -76,10 +78,10 @@ public static class Ui
     public static string PayMain(Payment p)
     {
         var note = (p.Note ?? "").Trim();
-        if (p.Kind != IslemTuru.Altin || p.PayType == OdemeTuru.Yok) return note != "" ? note : "ÖDEME";
+        if (p.Kind == IslemTuru.Kalip || p.PayType == OdemeTuru.Yok) return note != "" ? note : "ÖDEME";
         if (IsHurda(p)) return note != "" ? note : "HURDA ÖDEME";
         if (p.PayType == OdemeTuru.Gram) return note != "" ? note : "HAS ÖDEME";
-        var cur = p.PayType == OdemeTuru.Tl && (p.Tl ?? 0) > 0 ? "TL" : "$";
+        var cur = p.PayType == OdemeTuru.Tl && (p.Tl ?? 0) > 0 ? "TL" : (p.PayType == OdemeTuru.Eur && (p.Eur ?? 0) > 0 ? "€" : "$");
         if ((p.GoldEq ?? 0) > 0 && (p.GoldEqPrice ?? 0) > 0) return note != "" ? note : "ALTIN BORCU NAKİT ÖDEME " + cur;
         return note != "" ? note : "NAKİT ÖDEME " + cur;
     }
@@ -87,17 +89,19 @@ public static class Ui
     /// <summary>HTML: payDescParts().sub — ödemenin ikinci satırı (hurda hesabı, altın borcu nakit ödeme).</summary>
     public static string? PaySub(Payment p)
     {
-        if (p.Kind != IslemTuru.Altin) return null;
+        if (p.Kind == IslemTuru.Kalip) return null;
         if (IsHurda(p))
             return (p.HurdaGr ?? 0) > 0 ? $"Hurda {(p.HurdaGr ?? 0).ToString("0.##", Fmt.Tr)} gr x {(p.HurdaMil ?? 0).ToString("0", Fmt.Tr)} → {(p.Gram ?? 0).ToString("0.###", Fmt.Tr)} gr has" : null;
-        if (p.PayType is OdemeTuru.Usd or OdemeTuru.Tl && (p.GoldEq ?? 0) > 0 && (p.GoldEqPrice ?? 0) > 0)
+        if (p.PayType is OdemeTuru.Usd or OdemeTuru.Tl or OdemeTuru.Eur && (p.GoldEq ?? 0) > 0 && (p.GoldEqPrice ?? 0) > 0)
         {
             var isTl = p.PayType == OdemeTuru.Tl && (p.Tl ?? 0) > 0;
             var rate = p.Rate ?? 0;
-            var paid = isTl ? Fmt.Tl(p.Tl) : Fmt.Usd(p.Amount);
-            var price = isTl && rate > 0 ? Fmt.Tl(p.GoldEqPrice * rate) : Fmt.Usd(p.GoldEqPrice);
+            var isEur = p.PayType == OdemeTuru.Eur && (p.Eur ?? 0) > 0;
+            var er = p.EurRate ?? 0;
+            var paid = isTl ? Fmt.Tl(p.Tl) : (isEur ? Fmt.Eur(p.Eur) : Fmt.Usd(p.Amount));
+            var price = isTl && rate > 0 ? Fmt.Tl(p.GoldEqPrice * rate) : (isEur && er > 0 ? Fmt.Eur(p.GoldEqPrice / er) : Fmt.Usd(p.GoldEqPrice));
             var u = LedgerService.PayUsd(p);
-            return $"{paid} / {price} → {Fmt.Gr(p.GoldEq)}" + (u > 0.005m ? " · artan " + (isTl && rate > 0 ? Fmt.Tl(u * rate) : Fmt.Usd(u)) + " nakit borcuna" : "");
+            return $"{paid} / {price} → {Fmt.Gr(p.GoldEq)}" + (u > 0.005m ? " · artan " + (isTl && rate > 0 ? Fmt.Tl(u * rate) : (isEur && er > 0 ? Fmt.Eur(u / er) : Fmt.Usd(u))) + " nakit borcuna" : "");
         }
         return null;
     }
@@ -135,7 +139,7 @@ public static class Ui
     public static string Rate(decimal v) => v.ToString("#,##0.00##", Fmt.Tr);
 
     /// <summary>Ödeme satırındaki "kur 42,45" notu (has/hurda ödemede yok).</summary>
-    public static decimal? PayRate(Payment p) => p.PayType != OdemeTuru.Gram && (p.Rate ?? 0) > 0 ? p.Rate : null;
+    public static decimal? PayRate(Payment p) => p.PayType == OdemeTuru.Eur ? ((p.EurRate ?? 0) > 0 ? p.EurRate : null) : (p.PayType != OdemeTuru.Gram && (p.Rate ?? 0) > 0 ? p.Rate : null);
 
     /// <summary>Sipariş/borç satırındaki tür etiketi (Altın, Kalıp, Eski borç, Eski bakiye).</summary>
     public static string RecKind(OrderRecord r) => r.IsDebt ? (r.IsOpening ? "Eski bakiye" : "Eski borç") : Fmt.KindText(r.Kind);

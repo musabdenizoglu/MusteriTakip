@@ -969,57 +969,93 @@ window.mtHide = function (el, hide) {
             });
         }
 
-        // ---------------- Ödeme formu ----------------
-        var pf = $('[data-pay-form]', root);
+        // ---------------- Ödeme formu (HTML #payModal → #dnFields: tür seçimsiz ödeme kartı) ----------------
+        // Aynı anda tek ödeme türü dolu olur ($, ₺, €, altın gr, hurda); tür kutudan anlaşılır.
+        // Gizli alanlar (PayType, Amount, CountAsCash) sunucuya gider; sağdaki "Hesap Sonucu" canlı hesaplanır.
+        var pf = $('[data-dn-pay]', root);
         if (pf) {
-            var kindSel = $('[data-pm-kind]', pf), typeSel = $('[data-pm-type]', pf);
-            var P = {}; $$('[data-pm]', pf).forEach(function (el) { P[el.dataset.pm] = el; });
-            var cash = $('[data-pm-cash]', pf);
-            var amountTouched = false;
-            var sync = function () {
-                var kind = kindSel.value, type = kind === 'Kalıp' ? 'kalip' : typeSel.value;
-                $$('[data-show-kind]', pf).forEach(function (el) { el.hidden = el.dataset.showKind !== kind; });
-                $$('[data-show-type]', pf).forEach(function (el) {
-                    var okT = el.dataset.showType.split(' ').indexOf(type) >= 0;
-                    if (el.dataset.showKind) okT = okT && el.dataset.showKind === kind;
-                    el.hidden = !okT;
-                });
-                $$('[data-hide-type]', pf).forEach(function (el) { el.hidden = el.dataset.hideType === type; });
-                var eq = $('[data-goldeq]', pf); if (eq && cash) eq.hidden = cash.checked;
-            };
-            var calc = function (changed) {
-                var type = kindSel.value === 'Kalıp' ? 'kalip' : typeSel.value, out = $('#pmCalc'), has = null;
-                if (type === 'hurda') {
-                    var hg = num(P.hurdaGr), hm = num(P.hurdaMil);
-                    has = (hg > 0 && hm > 0) ? Math.floor(hg * hm + 1e-9) / 1000 : null;
-                    $('#pmHasShow').textContent = has !== null ? trNum(has, 3) + ' gr' : '—';
+            var D = {}; $$('[data-dn]', pf).forEach(function (el) { (D[el.dataset.dn] = D[el.dataset.dn] || []).push(el); });
+            var hType = $('[data-dn-type]', pf), hAmt = $('[data-dn-amount]', pf), hCash = $('[data-dn-cash]', pf);
+            var gP = $('#dnGoldP', pf), rT = $('#dnRate', pf), eR = $('#dnEurRate', pf), eqP = $('#pmGoldEqPriceIn', pf), chk = $('#dnGoldChk', pf);
+            var prevB = parseFloat(pf.dataset.prev) || 0, remG = parseFloat(pf.dataset.goldRemaining) || 0;
+            var r2 = function (v) { return Math.round(v * 100) / 100; }, r3 = function (v) { return Math.round(v * 1000) / 1000; };
+            var lt = function () { return window.__mtLT || null; };
+            var liveRate = function () { var d = lt(); return d && d.usd && d.usd[1] > 0 ? Math.round(d.usd[1] * 10000) / 10000 : 0; };
+            var liveGold = function () { var d = lt(); return d && d.gold && d.gold[1] > 0 && d.usd[1] > 0 ? r2(d.gold[1] / d.usd[1]) : 0; };
+            var liveParity = function () { var d = lt(); return d && d.eur && d.eur[1] > 0 && d.usd[1] > 0 ? Math.round(d.eur[1] / d.usd[1] * 10000) / 10000 : 0; };
+            var filled = function (k) { return (D[k] || []).some(function (i) { return i.value.trim() !== ''; }); };
+            var dnType = function () { return filled('gr') ? 'gr' : filled('hurda') ? 'hurda' : filled('tl') ? 'tl' : filled('eur') ? 'eur' : 'usd'; };
+            var v = function (k, i) { return num(D[k][i || 0]) || 0; };
+            var paint = function () {
+                var type = dnType(), act = document.activeElement;
+                if (!num(gP) && liveGold()) gP.value = liveGold();
+                if (!num(rT) && liveRate()) rT.value = liveRate();
+                if (eqP && !num(eqP) && liveGold()) eqP.value = liveGold();
+                if (!num(eR) && liveParity()) eR.value = liveParity();
+                var gp = num(gP) || 0, rt = num(rT) || 0, par = num(eR) || liveParity();
+                $('#dnGoldPWrap', pf).hidden = !((type === 'gr' || type === 'hurda') && (!gp || act === gP));
+                $('#dnRateWrap', pf).hidden = !(type === 'tl' && (!rt || act === rT));
+                $('#dnEurRateWrap', pf).hidden = !(type === 'eur' && (!par || act === eR));
+                // Has karşılığı ve dolar tutarı
+                var has = 0, usd = 0;
+                if (type === 'gr') { has = v('gr'); usd = has * gp; }
+                else if (type === 'hurda') { var hg = v('hurda', 0), hm = v('hurda', 1); has = hg > 0 && hm > 0 ? Math.floor(hg * hm + 1e-9) / 1000 : 0; usd = has * gp; }
+                else {
+                    usd = type === 'tl' ? (rt > 0 ? v('tl') / rt : 0) : type === 'eur' ? v('eur') * par : v('usd');
+                    var pr = (eqP && num(eqP)) || liveGold(); has = usd > 0 && pr > 0 ? usd / pr : 0;
                 }
-                if (type === 'gr') has = num(P.gram);
-                if ((type === 'gr' || type === 'hurda') && !amountTouched) {
-                    var gp = num(P.goldPrice);
-                    if (has > 0 && gp > 0) { P.amount.value = (Math.round(has * gp * 100) / 100).toFixed(2); out.textContent = trNum(has, 3) + ' gr × ' + money(gp) + ' = ' + money(has * gp) + ' (altın hesabına işlenir)'; }
-                    else out.textContent = 'Has altın ödemesi müşterinin altın hesabından düşer; tutar bilgi amaçlıdır.';
-                } else if (type === 'tl' && !amountTouched) {
-                    var t = num(P.tl), r = num(P.rate);
-                    if (t > 0 && r > 0) { P.amount.value = (Math.round(t / r * 100) / 100).toFixed(2); out.textContent = tl(t) + ' ÷ ' + trNum(r, 4) + ' = ' + money(t / r); }
-                    else out.textContent = "Dolar karşılığı için kuru girin ya da “Güncel kur”a basın.";
-                } else if (type !== 'gr' && type !== 'hurda' && type !== 'tl') out.textContent = '';
-                var eqOut = $('#pmEq');
-                if (eqOut && P.goldEqPrice) {
-                    var a = num(P.amount), gpq = num(P.goldEqPrice), rem = parseFloat(pf.dataset.goldRemaining) || 0;
-                    eqOut.textContent = (a > 0 && gpq > 0) ? '≈ ' + trNum(Math.min(Math.round(a / gpq * 1000) / 1000, rem), 3) + ' gr altın borcundan düşülür' : '';
+                usd = r2(usd);
+                $('#dnHas', pf).value = has > 0 ? trNum(r3(has), 3) + ' gr' : '';
+                hType.value = type;
+                hAmt.value = usd > 0 ? usd.toFixed(2) : '';
+                // Altın borcu kutusu (yalnız nakit ödemelerde)
+                var cashPay = type !== 'gr' && type !== 'hurda';
+                var gc = $('#pmGoldClose', pf); if (gc) gc.hidden = !cashPay;
+                var toGold = !!(chk && chk.checked && cashPay && remG > 0.0005);
+                hCash.value = toGold ? 'false' : 'true';
+                var gq = eqP ? (num(eqP) || 0) : 0, payU = 0, payG = 0;
+                if (!cashPay) payG = r3(has);
+                else if (toGold && gq > 0) { payG = Math.min(r3(usd / gq), remG); var left = usd - payG * gq; payU = left < gq * 0.001 ? 0 : r2(left); }
+                else payU = usd;
+                if (gc) {
+                    var pNow = gq || liveGold();
+                    $('#pmGoldCloseInfo', pf).innerHTML = 'Kalan altın borcu: <b>' + trNum(remG, 3) + ' gr</b>' + (pNow > 0 ? ' ≈ <b>' + money(remG * pNow) + '</b> <span class="gc-p">(bugün ' + trNum(pNow, 2) + ' $/gr)</span>' : '');
+                    $('#dnGoldText', pf).textContent = 'Bu ödeme altın borcuna sayılsın' + (toGold && payG > 0 ? ' → ' + trNum(payG, 3) + ' gr' + (payU > 0.005 ? ' (altın borcu kapanıyor, artan ' + money(payU) + ' nakit borcundan düşer)' : '') : '');
+                    $('#pmGoldCloseBtn', pf).disabled = !(pNow > 0);
+                }
+                // Hesap Sonucu
+                var restU = r2(prevB - payU);
+                $('#psPrev', pf).textContent = money(prevB);
+                $('#psPay', pf).textContent = payU > 0 ? money(payU) : '—';
+                $('#psRest', pf).textContent = money(restU);
+                $('#psRestRow', pf).classList.toggle('ok', restU <= 0.005);
+                if ($('#psGPay', pf)) {
+                    var restG = Math.max(0, r3(remG - payG));
+                    $('#psGPay', pf).textContent = payG > 0 ? trNum(payG, 3) + ' gr' : '—';
+                    $('#psGRest', pf).textContent = trNum(restG, 3) + ' gr';
+                    $('#psGRestRow', pf).classList.toggle('ok', restG <= 0.0005);
                 }
             };
+            var clearAll = function (keep) { Object.keys(D).forEach(function (k) { if (k !== keep) D[k].forEach(function (i) { i.value = ''; }); }); };
             pf.addEventListener('input', function (e) {
-                if (e.target === P.amount) { amountTouched = P.amount.value !== ''; calc('amount'); return; }
-                if (e.target.dataset && e.target.dataset.pm) { if (e.target.dataset.pm !== 'goldEqPrice' && e.target.dataset.pm !== 'rate') amountTouched = false; if (e.target.dataset.pm === 'rate') amountTouched = false; calc(e.target.dataset.pm); }
+                var k = e.target.dataset && e.target.dataset.dn;
+                if (k && e.target.value.trim() !== '') clearAll(k);   // aynı anda tek ödeme türü
+                paint();
             });
-            pf.addEventListener('change', function (e) { if (e.target === kindSel || e.target === typeSel || e.target === cash) { amountTouched = false; sync(); calc(); } });
-            amountTouched = !!(P.amount && P.amount.value);
-            sync(); calc();
-            // TL / Dolar ödemede kur boşsa canlı kuru yaz
-            document.addEventListener('mt:ticker', function () { if (P.rate && !P.rate.value && (typeSel.value === 'tl' || typeSel.value === 'usd') && window.__mtLT) { P.rate.value = (Math.round(window.__mtLT.usd[1] * 10000) / 10000).toString(); calc('rate'); } });
-            if (window.__mtLT && P.rate && !P.rate.value) document.dispatchEvent(new CustomEvent('mt:ticker'));
+            pf.addEventListener('change', paint);
+            pf.addEventListener('focusout', function () { setTimeout(paint, 0); });
+            var gcBtn = $('#pmGoldCloseBtn', pf);
+            if (gcBtn) gcBtn.addEventListener('click', function () {   // kalan altın borcu × $/gr → $ tutarı, altına sayılır
+                var pr = num(eqP) || liveGold(); if (!(pr > 0) || !(remG > 0)) return;
+                eqP.value = pr; clearAll(); D.usd[0].value = r2(remG * pr).toFixed(2); chk.checked = true; paint();
+            });
+            var cb = $('#pmCloseBal', pf);
+            if (cb) cb.addEventListener('click', function () {   // kalan bakiyenin tamamı dolar ödemesi
+                clearAll(); D.usd[0].value = prevB.toFixed(2); if (chk) chk.checked = false; paint(); D.usd[0].focus();
+            });
+            pf.addEventListener('submit', function () { paint(); }, true);
+            document.addEventListener('mt:ticker', paint);
+            paint();
         }
 
         // ---------------- Gider formu: ₺ ÷ kur = $ önizleme ----------------

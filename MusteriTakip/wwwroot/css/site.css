@@ -4120,3 +4120,12 @@ html body .hist-row > .hist-date small.ed, html body #recordsList .rec-row > .re
 .note-pop.note2{border-color:var(--amber);}
 .note-pop.note2::before{display:none;}
 .img-modal .modal-caption .mc-note2{margin-top:8px; padding-top:8px; border-top:1px dashed currentColor;}
+
+/* Ödeme penceresi (HTML #payModal #dnFields): $ ₺ € | altın | hurda · milyem · has — 3 sütun */
+#payModal .pm-grid.dn-grid{grid-template-columns:repeat(3,minmax(0,1fr));align-items:end}
+#payModal .dn-grid > .field{margin:0;min-width:0}
+#payModal .dn-grid > .field[hidden], #payModal .dn-grid > .gold-close[hidden]{display:none !important}
+#payModal .dn-grid input{width:100%}
+#payModal .dn-grid #dnHas{font-weight:700;cursor:default}
+#payModal .dn-grid .dn-date{grid-column:span 2;max-width:190px}
+@media (max-width:480px){ #payModal .pm-grid.dn-grid{grid-template-columns:1fr 1fr} }

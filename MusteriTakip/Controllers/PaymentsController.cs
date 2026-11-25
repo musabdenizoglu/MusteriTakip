@@ -35,6 +35,7 @@ public class PaymentsController : Controller
         _db.Payments.Add(p);
         await _db.SaveChangesAsync();
         TempData["Ok"] = $"{c.Name}: {Fmt.Usd(p.Amount)} ödeme eklendi.";
+        if (!string.IsNullOrEmpty(vm.ReturnUrl) && Url.IsLocalUrl(vm.ReturnUrl)) return Redirect(vm.ReturnUrl);
         return vm.FromKasa ? RedirectToAction("Index", "Kasa") : RedirectToAction("Details", "Customers", new { id = c.Id, tab = "cari" });
     }
 
@@ -52,8 +53,11 @@ public class PaymentsController : Controller
             {
                 OdemeTuru.Gram => p.Method == "Hurda altın" ? "hurda" : "gr",
                 OdemeTuru.Tl => "tl",
+                OdemeTuru.Eur => "eur",
                 _ => "usd"
             },
+            Eur = p.Eur,
+            EurRate = p.EurRate,
             Method = p.Method == "Hurda altın" ? "Nakit" : p.Method,
             Amount = p.Amount,
             Gram = p.PayType == OdemeTuru.Gram && p.Method != "Hurda altın" ? p.Gram : null,
@@ -83,6 +87,7 @@ public class PaymentsController : Controller
         if (!ModelState.IsValid) { vm.Id = id; await FillAsync(vm, id); return View("Form", vm); }
         await _db.SaveChangesAsync();
         TempData["Ok"] = "Ödeme güncellendi.";
+        if (!string.IsNullOrEmpty(vm.ReturnUrl) && Url.IsLocalUrl(vm.ReturnUrl)) return Redirect(vm.ReturnUrl);
         return RedirectToAction("Details", "Customers", new { id = p.CustomerId, tab = "cari" });
     }
 
@@ -125,6 +130,7 @@ public class PaymentsController : Controller
             {
                 vm.CustomerName = c.Name;
                 vm.GoldRemaining = LedgerService.GoldRemaining(c, paymentId);
+                vm.PrevBalance = Math.Round(c.Records.Sum(r => r.Price ?? 0m) - c.Payments.Where(p => p.Id != paymentId).Sum(LedgerService.PayUsd), 2);
             }
         }
     }
@@ -152,13 +158,19 @@ public class PaymentsController : Controller
             if (!(vm.Rate > 0)) ModelState.AddModelError(nameof(vm.Rate), "Lütfen dolar kurunu girin ya da “Güncel kur”a basın.");
             if (vm.Tl > 0 && vm.Rate > 0 && !(vm.Amount > 0)) vm.Amount = Math.Round(vm.Tl.Value / vm.Rate.Value, 2);
         }
+        else if (mode == "eur")
+        {
+            if (!(vm.Eur > 0)) ModelState.AddModelError(nameof(vm.Eur), "Lütfen euro tutarını girin.");
+            if (!(vm.EurRate > 0)) ModelState.AddModelError(nameof(vm.EurRate), "Lütfen €/$ paritesini girin.");
+            if (vm.Eur > 0 && vm.EurRate > 0) vm.Amount = Math.Round(vm.Eur.Value * vm.EurRate.Value, 2);
+        }
 
         if ((mode == "gr" || mode == "hurda") && !(vm.Amount > 0) && gram > 0 && vm.GoldPrice > 0)
             vm.Amount = Math.Round(gram.Value * vm.GoldPrice.Value, 2);
         if (!(vm.Amount > 0)) ModelState.AddModelError(nameof(vm.Amount), "Lütfen tutarı ($) girin.");
 
         var remaining = LedgerService.GoldRemaining(c, paymentId);
-        var wantsGoldEq = kind == IslemTuru.Altin && (mode == "usd" || mode == "tl") && !vm.CountAsCash && remaining > 0.0005m;
+        var wantsGoldEq = kind == IslemTuru.Altin && (mode == "usd" || mode == "tl" || mode == "eur") && !vm.CountAsCash && remaining > 0.0005m;
         if (wantsGoldEq && !(vm.GoldEqPrice > 0))
             ModelState.AddModelError(nameof(vm.GoldEqPrice), "Tutarı altına çevirmek için altın fiyatını ($/gr) yazın ya da “nakit borcuna sayılsın” kutusunu işaretleyin.");
 
@@ -167,9 +179,11 @@ public class PaymentsController : Controller
         p.Date = Dates.ParseOrToday(vm.Date);
         p.Amount = Math.Round(vm.Amount!.Value, 2);
         p.Kind = kind;
-        p.Note = string.IsNullOrWhiteSpace(vm.Note) ? null : vm.Note.Trim();
+        p.Note = string.IsNullOrWhiteSpace(vm.Note) ? null : Fmt.Upper(vm.Note);
         p.Method = mode == "hurda" ? "Hurda altın" : (string.IsNullOrWhiteSpace(vm.Method) ? "Nakit" : vm.Method);
-        p.PayType = mode switch { "kalip" => OdemeTuru.Yok, "gr" or "hurda" => OdemeTuru.Gram, "tl" => OdemeTuru.Tl, _ => OdemeTuru.Usd };
+        p.PayType = mode switch { "kalip" => OdemeTuru.Yok, "gr" or "hurda" => OdemeTuru.Gram, "tl" => OdemeTuru.Tl, "eur" => OdemeTuru.Eur, _ => OdemeTuru.Usd };
+        p.Eur = mode == "eur" ? vm.Eur : null;
+        p.EurRate = mode == "eur" ? vm.EurRate : null;
         p.Gram = gram;
         p.GoldPrice = (mode == "gr" || mode == "hurda") && vm.GoldPrice > 0 ? vm.GoldPrice : null;
         p.Tl = mode == "tl" && vm.Tl > 0 ? vm.Tl : null;
@@ -184,5 +198,7 @@ public class PaymentsController : Controller
             var gq = Math.Min(Math.Round(p.Amount / vm.GoldEqPrice!.Value, 3), remaining);
             if (gq > 0.0005m) { p.GoldEq = gq; p.GoldEqPrice = vm.GoldEqPrice; }
         }
+        // HTML: nakit hesabına işlenen $/₺/€ ödemede etiket boş (Nakit-$/₺/€); Kalıp etiketi korunur
+        if (mode is "usd" or "tl" or "eur" && !(p.GoldEq > 0)) p.Kind = vm.Kind == "Kalıp" ? IslemTuru.Kalip : null;
     }
 }
