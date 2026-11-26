@@ -1342,7 +1342,8 @@ window.mtHide = function (el, hide) {
 
     document.addEventListener('click', function (e) {
         var b = e.target.closest && e.target.closest('[data-back]');
-        if (!b) return;
+        // Modal kabındaki data-back yalnızca "kapatınca dönülecek adres"tir; geri düğmesi değildir
+        if (!b || b.classList.contains('confirm-modal')) return;
         e.preventDefault();
         window.mtBack();
     });
