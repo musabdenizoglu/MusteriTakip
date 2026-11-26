@@ -40,7 +40,7 @@
 
 <div class="home-panel active" id="panelCustomer">
     <div class="screen-actions">
-        <span class="back-pair"><a class="btn secondary" id="backHomeBtn" asp-controller="Home" asp-action="Index">← Ana Sayfaya Dön</a><button type="button" class="btn secondary back-step" title="Geri: önceki sayfaya dön" aria-label="Geri" onclick="history.back()">@Html.Raw(BackSvg)</button></span>
+        <span class="back-pair"><a class="btn secondary" id="backHomeBtn" asp-controller="Home" asp-action="Index">← Ana Sayfaya Dön</a><button type="button" class="btn secondary back-step" title="Geri: önceki sayfaya dön" aria-label="Geri" data-back>@Html.Raw(BackSvg)</button></span>
         <span class="cust-head-btns">
             <span class="more-wrap">
                 <button class="btn secondary" id="custMoreBtn" type="button" aria-haspopup="true">⋯ İşlemler</button>

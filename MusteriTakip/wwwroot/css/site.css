@@ -3236,7 +3236,8 @@ html[data-skin="kurumsal"] body .topbar{position:fixed !important; top:0; left:v
 html[data-skin="kurumsal"] body #mainContent{margin-left:var(--fm-w) !important; max-width:none !important; padding:82px 28px 60px !important; transition:margin-left .2s;}
 html[data-skin="kurumsal"] body .home-layout{margin-top:0 !important;}
 html[data-skin="kurumsal"] body .home-content{width:100% !important; max-width:none !important;}
-html[data-skin="kurumsal"] body #panelRecent .back-pair, html[data-skin="kurumsal"] body #panelSelectCust > .back-pair, html[data-skin="kurumsal"] body #panelKasa > .back-pair, html[data-skin="kurumsal"] body #panelGiderler .back-pair, html[data-skin="kurumsal"] body #panelRaporlar .back-pair, html[data-skin="kurumsal"] body #panelAyarlar .back-pair{display:none !important;}
+/* Müşteriler, Kasa, Giderler ve Raporlar sayfalarında "Ana Sayfaya Dön" + "Geri" düğmeleri görünür kalır */
+html[data-skin="kurumsal"] body #panelRecent .back-pair, html[data-skin="kurumsal"] body #panelAyarlar .back-pair{display:none !important;}
 html[data-skin="kurumsal"] body .gsearch{margin-left:6px;}
 
 /* sol sütun */
@@ -3360,6 +3361,11 @@ html[data-skin="kurumsal"] body #kasaList .hist-row::before, html[data-skin="kur
 
 /* ==== kurumsalNoSegCss ==== */
 @media (min-width:901px){html[data-skin="kurumsal"] body .seg-tabs{display:none !important;} html[data-skin="kurumsal"] body .seg-row{justify-content:flex-end;} html[data-skin="kurumsal"] body .seg-row:not(:has(#giderOpenBtn)){display:none;}}
+/* Giderler: "Ana Sayfaya Dön / Geri" ile "Gider Ekle" aynı satırda, dikeyde ortalı.
+   Sekmeler görünürken geri düğmeleri kendi satırında kalır; sekmeler gizliyken (Kurumsal, masaüstü) solda durur. */
+html body .seg-row > .back-pair{display:inline-flex !important; gap:8px; align-items:center; align-self:center; margin:0 !important; flex-basis:100%;}
+html body .seg-row > .back-pair .btn{margin:0 !important;}
+@media (min-width:901px){html[data-skin="kurumsal"] body .seg-row > .back-pair{flex-basis:auto; margin-right:auto !important;}}
 
 /* ==== noSelClearCss ==== */
 #kasaSelClear, #histSelClear{display:none !important;}

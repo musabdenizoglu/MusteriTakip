@@ -1275,3 +1275,95 @@ window.mtHide = function (el, hide) {
         b.querySelector('.es-s').textContent = sub || b.dataset.s;
     };
 })();
+
+// ---------------- GERİ: önceki sayfaya dön ----------------
+// Gezilen sayfalar oturum boyunca bir yığında tutulur. Aynı sayfada kalan işlemler (filtre, sıralama,
+// sekme, kayıt sonrası yönlendirme) yeni adım sayılmaz; böylece "Geri" her zaman bu sayfaya
+// nereden gelindiyse oraya döner. Sayfadaki geri düğmesi [data-back] ve klavyedeki Backspace aynı işi yapar.
+(function () {
+    'use strict';
+    var KEY = 'mt_nav', FLAG = 'mt_navback', MAX = 60;
+    function ss(k, v) { try { if (v === undefined) return sessionStorage.getItem(k); if (v === null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); } catch (e) { return null; } }
+    function load() { try { var a = JSON.parse(ss(KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+    function save(a) { if (a.length > MAX) a = a.slice(a.length - MAX); ss(KEY, JSON.stringify(a)); }
+    // Sayfa kimliği: yol (sorgu dizesi hariç). "/", "/Home", "/Home/Index" aynı sayfadır.
+    function pageKey(u) {
+        var p;
+        try { p = new URL(u, location.href).pathname; } catch (e) { p = '/'; }
+        p = decodeURIComponent(p).toLowerCase().replace(/\/index$/, '').replace(/\/+$/, '');
+        if (p === '' || p === '/home') p = '/';
+        return p;
+    }
+    var here = location.href, hereKey = pageKey(here);
+    // Giriş sayfaları geçmişe yazılmaz
+    if (/^\/account\//.test(hereKey)) return;
+
+    var nav = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0] || {}).type || '';
+    var st = load(), top = st[st.length - 1];
+    if (ss(FLAG) === '1') {
+        // Geri düğmesiyle gelindi: yığın zaten kısaltıldı
+        ss(FLAG, null);
+        if (top && top.k === hereKey) top.u = here; else st.push({ k: hereKey, u: here });
+    } else if (top && top.k === hereKey) {
+        top.u = here;                                   // aynı sayfa: yenileme, filtre, kayıt sonrası dönüş
+    } else if (nav === 'back_forward') {
+        // Tarayıcının kendi geri/ileri tuşu: yığında bu sayfaya kadar geri sar
+        var i = -1;
+        for (var j = st.length - 1; j >= 0; j--) if (st[j].k === hereKey) { i = j; break; }
+        if (i >= 0) { st.length = i + 1; st[i].u = here; } else st.push({ k: hereKey, u: here });
+    } else {
+        st.push({ k: hereKey, u: here });
+    }
+    save(st);
+
+    // Sayfada adres değişirse (ör. müşteri sekmesi replaceState ile) dönüşte o hâli açılsın
+    window.addEventListener('pagehide', function () {
+        var a = load(), t = a[a.length - 1];
+        if (t && t.k === pageKey(location.href)) { t.u = location.href; save(a); }
+    });
+    // Tarayıcı önbelleğinden geri gelindiyse yığını bu sayfaya göre düzelt
+    window.addEventListener('pageshow', function (e) {
+        if (!e.persisted) return;
+        var a = load(), k = pageKey(location.href), i = -1;
+        for (var j = a.length - 1; j >= 0; j--) if (a[j].k === k) { i = j; break; }
+        if (i >= 0) a.length = i + 1; else a.push({ k: k, u: location.href });
+        a[a.length - 1].u = location.href; save(a);
+        ss(FLAG, null);
+    });
+
+    window.mtBack = function () {
+        var a = load(), k = pageKey(location.href);
+        while (a.length && a[a.length - 1].k === k) a.pop();   // bu sayfayı çıkar
+        var prev = a[a.length - 1];
+        save(a);
+        ss(FLAG, '1');
+        location.href = prev ? prev.u : '/';                    // önceki yoksa ana sayfa
+    };
+
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('[data-back]');
+        if (!b) return;
+        e.preventDefault();
+        window.mtBack();
+    });
+
+    // Klavyedeki geri (Backspace) tuşu: yazı alanında değilken ve açık pencere yokken önceki sayfaya döner
+    function isTyping(el) {
+        if (!el || el === document.body) return false;
+        if (el.isContentEditable) return true;
+        var t = (el.tagName || '').toLowerCase();
+        if (t === 'textarea' || t === 'select') return true;
+        if (t === 'input') return !/^(button|submit|reset|checkbox|radio|file|image|color|range)$/i.test(el.type || '');
+        return false;
+    }
+    function modalOpen() {
+        return !!document.querySelector('.confirm-modal.open, .img-modal.open, .modal.open, [role=dialog][open]');
+    }
+    document.addEventListener('keydown', function (e) {
+        if (e.defaultPrevented || e.repeat) return;
+        if (e.key !== 'Backspace' || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
+        if (isTyping(document.activeElement) || modalOpen()) return;
+        e.preventDefault();
+        window.mtBack();
+    });
+})();

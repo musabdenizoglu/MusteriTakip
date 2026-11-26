@@ -59,7 +59,7 @@
     </div>
     return;
 }
-<span class="back-pair"><a class="btn secondary" href="javascript:history.back()">← Geri</a></span>
+<span class="back-pair"><a class="btn secondary" href="#" data-back>← Geri</a></span>
 <div class="card">
     <h2>@ViewData["Title"]</h2>
     <form method="post" asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@Model.Id" data-image-form>
