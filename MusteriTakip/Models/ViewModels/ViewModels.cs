@@ -163,6 +163,10 @@ public class StatementVm
     public DateOnly? To { get; set; }
     public List<StatementRow> Rows { get; set; } = new();
     public Totals Totals { get; set; } = new();
+    /// <summary>Hesap hareketlerinden seçilenlerle hazırlanan ekstre ("price:1,payment:2").</summary>
+    public string? Sel { get; set; }
+    /// <summary>Sayfa açılınca yazdırma (PDF kaydet) penceresi açılsın.</summary>
+    public bool AutoPrint { get; set; }
 }
 
 // ---------------- Sipariş ----------------

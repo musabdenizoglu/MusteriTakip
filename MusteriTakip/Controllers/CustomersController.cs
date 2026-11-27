@@ -200,22 +200,61 @@ public class CustomersController : Controller
     }
 
     // GET /Customers/Statement/5?from=2026-01-01&to=2026-12-31
-    public async Task<IActionResult> Statement(int id, string? from, string? to)
+    /// <summary>Seçilen hareketlerin ekstresi (JPG çizimi için): /Customers/StatementData/5?sel=price:1,payment:2</summary>
+    public async Task<IActionResult> StatementData(int id, string? sel)
     {
+        var c = await _ledger.LoadCustomerAsync(id);
+        if (c == null) return NotFound();
+        var st = await _settings.GetAsync();
+        var set = (sel ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet();
+        var rows = LedgerService.Statement(c, null, null, set);
+        return Json(new
+        {
+            shop = string.IsNullOrWhiteSpace(st.ShopName) ? "Müşteri Takip" : st.ShopName,
+            name = c.Name, code = c.Code, phone = c.Phone,
+            rows = rows.Select(r => new { date = Fmt.Date(r.Date), desc = r.Description, debt = r.Debt, pay = r.Pay, bal = r.Balance })
+        });
+    }
+
+    // Seçilenlerle: /Customers/Statement/5?sel=price:1,payment:2&embed=1
+    public async Task<IActionResult> Statement(int id, string? from, string? to, string? sel, bool print = false, bool embed = false)
+    {
+        ViewData["Embed"] = embed;
         var c = await _ledger.LoadCustomerAsync(id);
         if (c == null) return NotFound();
         var st = await _settings.GetAsync();
         var f = Dates.TryParse(from);
         var t = Dates.TryParse(to);
+        var set = string.IsNullOrWhiteSpace(sel) ? null : sel.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet();
         return View(new StatementVm
         {
             Customer = c,
             ShopName = string.IsNullOrWhiteSpace(st.ShopName) ? "Müşteri Takip" : st.ShopName!,
             From = f,
             To = t,
-            Rows = LedgerService.Statement(c, f, t),
-            Totals = LedgerService.CustomerTotals(c)
+            Rows = LedgerService.Statement(c, f, t, set),
+            Totals = LedgerService.CustomerTotals(c),
+            Sel = set == null ? null : sel,
+            AutoPrint = print
         });
+    }
+
+    /// <summary>Hesap hareketlerinde seçilen sipariş/borç ve ödemeleri topluca çöp kutusuna taşır.</summary>
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteMovements(int id, string[] keys)
+    {
+        int Id(string k, string pre) => k.StartsWith(pre) && int.TryParse(k[pre.Length..], out var v) ? v : 0;
+        var recIds = keys.Select(k => Id(k, "price:")).Where(v => v > 0).ToList();
+        var payIds = keys.Select(k => Id(k, "payment:")).Where(v => v > 0).ToList();
+        var now = DateTime.UtcNow;
+        var recs = await _db.OrderRecords.Where(r => r.CustomerId == id && recIds.Contains(r.Id)).ToListAsync();
+        var pays = await _db.Payments.Where(p => p.CustomerId == id && payIds.Contains(p.Id)).ToListAsync();
+        recs.ForEach(r => r.DeletedAt = now);
+        pays.ForEach(p => p.DeletedAt = now);
+        await _db.SaveChangesAsync();
+        var n = recs.Count + pays.Count;
+        if (n > 0) TempData["Ok"] = $"{n} kayıt çöp kutusuna taşındı.";
+        return RedirectToAction(nameof(Details), new { id, tab = "cari" });
     }
 
     /// <summary>Ad yazarken öneri (datalist / otomatik tamamlama).</summary>

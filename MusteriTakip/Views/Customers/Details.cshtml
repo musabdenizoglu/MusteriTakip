@@ -201,6 +201,11 @@
                     <div id="histSelBar" class="hist-selbar" @(Model.History.Count == 0 ? "hidden" : null)>
                         <label class="hsel"><input type="checkbox" id="histSelAll" aria-label="Tümünü seç"> <span>Tümünü seç</span></label>
                         <span id="histSelCnt" class="hsel-cnt"></span>
+                        <button type="button" class="btn secondary sm" id="histSelPdf" style="display:none">Seçileni PDF yap</button>
+                        <button type="button" class="btn secondary sm" id="histSelPng" style="display:none">Seçileni resim yap (.JPG)</button>
+                        <button type="button" class="btn secondary sm" id="histSelClear" style="display:none">Seçimi temizle</button>
+                        <button type="button" class="btn secondary sm" id="histSelDel" style="display:none">Seçilenleri sil</button>
+                        <form method="post" asp-action="DeleteMovements" asp-route-id="@c.Id" id="histSelDelForm" hidden></form>
                         <div class="hs-filter">
                             <input type="text" id="histSearch" placeholder="Borç, ödeme, model, tarih, tür…" aria-label="Ara" title="Virgülle birden fazla arama yapabilirsiniz" autocomplete="off">
                             <select id="histPeriod" aria-label="Dönem">
@@ -236,7 +241,7 @@
 
 @* ---------- Kolaj önizleme (HTML: #collagePrev) ---------- *@
 <div class="confirm-modal" id="collagePrev" data-name="@c.Name" data-phone="@Fmt.WaPhone(c.Phone)"><div class="confirm-card" role="dialog" aria-label="Kolaj önizleme" style="max-width:760px;width:94vw;max-height:92vh;display:flex;flex-direction:column;gap:10px;">
-    <h2 style="margin:0;">Kolaj önizleme (JPG)</h2>
+    <h2 style="margin:0;" id="collagePrevTitle">Kolaj önizleme (JPG)</h2>
     <div style="overflow:auto;flex:1;min-height:0;text-align:center;"><img id="collagePrevImg" alt="Kolaj" style="max-width:100%;height:auto;border:1px solid var(--line);border-radius:8px;"></div>
     <div class="confirm-actions"><button type="button" class="btn secondary" id="collagePrevClose">Kapat</button><button type="button" class="btn" id="collagePrevSave">Kaydet (.JPG)</button><button type="button" class="btn" id="collagePrevShare">WhatsApp'ta paylaş</button></div>
 </div></div>
@@ -245,6 +250,16 @@
 <div id="rdTpls" hidden>@foreach (var r in records)
     {<template id="rdt-@r.Id"><partial name="_RecDetail" model="r" /></template>}</div>
 <partial name="_RecDetailModal" />
+
+@* ---------- Ekstre önizleme (HTML: #stmtPrev) ---------- *@
+<div class="confirm-modal" id="stmtPrev"><div class="confirm-card" role="dialog" aria-label="Ekstre önizleme" style="max-width:760px;width:94vw;max-height:92vh;display:flex;flex-direction:column;gap:10px;">
+    <h2 style="margin:0;">Ekstre önizleme (JPG)</h2>
+    <p class="field-hint" style="margin:0;">Kaydetmek için aşağıdaki Kaydet düğmesine basın.</p>
+    <div style="overflow:auto;flex:1 1 auto;border:1px solid var(--line);border-radius:8px;background:#fff;"><img id="stmtPrevImg" alt="Hesap ekstresi" style="display:block;width:100%;height:auto;"></div>
+    <div class="confirm-actions"><button class="btn secondary" id="stmtPrevClose" type="button">Kapat</button><button class="btn secondary" id="stmtPrevShare" type="button">WhatsApp'ta paylaş</button><button class="btn" id="stmtPrevSave" type="button">Kaydet</button></div>
+</div></div>
+<iframe id="stmtFrame" title="Ekstre yazdırma" aria-hidden="true" tabindex="-1" style="position:fixed;width:0;height:0;border:0;left:-9999px;top:0;visibility:hidden"></iframe>
+<div id="mtToast" role="status" aria-live="polite" style="position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:3000;background:#222;color:#fff;padding:12px 18px;border-radius:6px;font-size:.92rem;box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:90vw;display:none"></div>
 
 @section Scripts {
     <script>
@@ -342,10 +357,11 @@
                     var boxes = list.querySelectorAll('.hsel-box'), n = list.querySelectorAll('.hsel-box:checked').length;
                     all.checked = boxes.length > 0 && n === boxes.length; all.indeterminate = n > 0 && !all.checked;
                     cnt.textContent = n ? n + ' kayıt seçili' : '';
-                    if (x[0] === 'recSelAll') ['recSelCollage', 'recSelClear', 'recSelDel'].forEach(function (id) { $(id).style.display = n ? '' : 'none'; });
+                    (x[0] === 'recSelAll' ? ['recSelCollage', 'recSelClear', 'recSelDel'] : ['histSelPdf', 'histSelPng', 'histSelClear', 'histSelDel']).forEach(function (id) { $(id).style.display = n ? '' : 'none'; });
                 }
                 all.addEventListener('change', function () { list.querySelectorAll('.hsel-box').forEach(function (b) { if (!b.closest('[hidden]')) b.checked = all.checked; }); upd(); });
                 list.addEventListener('change', function (e) { if (e.target.classList.contains('hsel-box')) upd(); });
+                if (x[0] === 'histSelAll') $('histSelClear').addEventListener('click', function () { list.querySelectorAll('.hsel-box').forEach(function (b) { b.checked = false; }); upd(); });
                 if (x[0] === 'recSelAll') {
                     $('recSelClear').addEventListener('click', function () { list.querySelectorAll('.hsel-box').forEach(function (b) { b.checked = false; }); upd(); });
                     $('recSelDel').addEventListener('click', function () {
@@ -353,8 +369,7 @@
                         var f = $('recSelDelForm');
                         f.querySelectorAll('input[name="ids"]').forEach(function (i) { i.remove(); });
                         sel.forEach(function (b) { var i = document.createElement('input'); i.type = 'hidden'; i.name = 'ids'; i.value = b.dataset.id; f.appendChild(i); });
-                        f.dataset.confirm = 'Seçili ' + sel.length + ' kaydı silmek istediğinize emin misiniz? 30 gün içinde Ayarlar → Çöp Kutusu\'ndan geri alabilirsiniz.';
-                        f.requestSubmit();
+                        mtAsk('Seçili ' + sel.length + ' kaydı (' + sel.length + ' borç) silmek istediğinize emin misiniz?', { okLabel: 'Sil', cancelLabel: 'Vazgeç', onOk: function () { f.submit(); } });
                     });
                     $('recSelCollage').addEventListener('click', function () {
                         var srcs = []; list.querySelectorAll('.hsel-box:checked').forEach(function (b) { if (b.dataset.img) srcs.push(b.dataset.img); });
@@ -362,8 +377,129 @@
                     });
                 }
             });
+            // ---- Hesap hareketleri: seçilenlerle PDF / JPG / silme ----
+            var hl = $('historyList'), stmtBase = '@Url.Action("Statement", new { id = c.Id })';
+            function histKeys() { return Array.prototype.map.call(hl.querySelectorAll('.hsel-box:checked'), function (b) { return b.dataset.key; }); }
+            var toastT = 0;
+            function toast(msg) { var t = $('mtToast'); t.textContent = msg; t.style.display = ''; clearTimeout(toastT); toastT = setTimeout(function () { t.style.display = 'none'; }, 4500); }
+            // PDF: ekstre görünmez bir çerçevede hazırlanır, aynı sayfada yazdırma penceresi açılır (yeni sekme yok)
+            $('histSelPdf').addEventListener('click', function () {
+                var k = histKeys(); if (!k.length) return;
+                var fr = $('stmtFrame'), btn = this; btn.disabled = true;
+                fr.onload = function () {
+                    fr.onload = null; btn.disabled = false;
+                    var old = document.title;
+                    try { document.title = fr.contentDocument.title; } catch (e) { }   // PDF dosya adı bu başlıktan gelir
+                    toast('Yazdır penceresinde "Hedef: PDF olarak kaydet" seçerek PDF alabilirsiniz.');
+                    setTimeout(function () {
+                        try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { toast('Yazdırma bu pencerede açılamadı.'); }
+                        document.title = old;
+                    }, 60);
+                };
+                fr.src = stmtBase + '?embed=1&sel=' + encodeURIComponent(k.join(',')) + '&_=' + Date.now();
+            });
+            $('histSelDel').addEventListener('click', function () {
+                var k = histKeys(); if (!k.length) return;
+                var nPay = k.filter(function (s) { return s.indexOf('payment:') === 0; }).length, nRec = k.length - nPay, parts = [];
+                if (nPay) parts.push(nPay + ' ödeme'); if (nRec) parts.push(nRec + ' borç');
+                var f = $('histSelDelForm');
+                f.querySelectorAll('input[name="keys"]').forEach(function (i) { i.remove(); });
+                k.forEach(function (s) { var i = document.createElement('input'); i.type = 'hidden'; i.name = 'keys'; i.value = s; f.appendChild(i); });
+                mtAsk('Seçili ' + k.length + ' kaydı (' + parts.join(', ') + ') silmek istediğinize emin misiniz?', { okLabel: 'Sil', cancelLabel: 'Vazgeç', onOk: function () { f.submit(); } });
+            });
+            // JPG: seçilen hareketler sunucudan alınır, eski HTML'deki (drawStatementImage) düzende resme çizilir
+            var money = function (v) { return (Number(v) || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' $'; };
+            $('histSelPng').addEventListener('click', async function () {
+                var k = histKeys(); if (!k.length) return;
+                var btn = this; btn.disabled = true;
+                try {
+                    var res = await fetch('@Url.Action("StatementData", new { id = c.Id })?sel=' + encodeURIComponent(k.join(',')), { credentials: 'same-origin' });
+                    if (!res.ok) throw 0;
+                    var d = await res.json();
+                    if (!d.rows || !d.rows.length) toast('Seçili kayıt yok.'); else drawStatementImage(d);
+                } catch (e) { toast('Resim oluşturulamadı.'); }
+                btn.disabled = false;
+            });
+            function drawStatementImage(d) {
+                var rows = d.rows, W = 980, pad = 36, rowH = 34, S = 2;
+                var tD = 0, tP = 0; rows.forEach(function (r) { tD += r.debt; tP += r.pay; });
+                var tR = rows[rows.length - 1].bal;
+                var headH = 176, H = headH + 44 + rows.length * rowH + 64 + 40;
+                var cv = document.createElement('canvas'); cv.width = W * S; cv.height = H * S;
+                var g = cv.getContext('2d'); g.scale(S, S);
+                var ink = '#1C2B26', soft = '#5B655F', teal = '#2E6F5E', red = '#A63A38';
+                var F = 'system-ui, "Segoe UI", Roboto, Arial, sans-serif';
+                g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, W, H);
+                g.fillStyle = teal; g.fillRect(0, 0, W, 8);
+                g.fillStyle = ink; g.font = '700 28px ' + F; g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+                g.fillText('Hesap Ekstresi', pad, 56);
+                g.font = '500 15px ' + F; g.fillStyle = soft; g.fillText(d.shop || 'Müşteri Takip', pad, 80);
+                var now = new Date(); g.textAlign = 'right';
+                g.fillText('Düzenlenme: ' + now.toLocaleDateString('tr-TR') + ' ' + now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }), W - pad, 56);
+                g.textAlign = 'left'; g.fillStyle = ink; g.font = '700 22px ' + F;
+                g.fillText(d.name + (d.code ? '  ·  ' + d.code : ''), pad, 122);
+                g.font = '500 15px ' + F; g.fillStyle = soft;
+                g.fillText([d.phone ? 'Tel: ' + d.phone : '', 'Seçili kayıtlar (' + rows.length + ')'].filter(Boolean).join('   ·   '), pad, 148);
+                var cx = { date: pad, desc: pad + 110, debt: W - pad - 300, pay: W - pad - 150, bal: W - pad };
+                var y = headH;
+                g.fillStyle = '#F4F1E8'; g.fillRect(pad - 8, y, W - 2 * pad + 16, 36);
+                g.fillStyle = soft; g.font = '700 13px ' + F; g.textBaseline = 'middle';
+                g.textAlign = 'left'; g.fillText('TARİH', cx.date, y + 18); g.fillText('AÇIKLAMA', cx.desc, y + 18);
+                g.textAlign = 'right'; g.fillText('BORÇ', cx.debt, y + 18); g.fillText('ÖDEME', cx.pay, y + 18); g.fillText('BAKİYE', cx.bal, y + 18);
+                y += 44;
+                function fit(t, w) { if (g.measureText(t).width <= w) return t; while (t.length > 1 && g.measureText(t + '…').width > w) t = t.slice(0, -1); return t + '…'; }
+                rows.forEach(function (r, i) {
+                    if (i % 2) { g.fillStyle = '#FBF9F4'; g.fillRect(pad - 8, y, W - 2 * pad + 16, rowH); }
+                    g.textBaseline = 'middle'; g.font = '500 15px ' + F; g.fillStyle = ink; g.textAlign = 'left';
+                    g.fillText(r.date, cx.date, y + rowH / 2);
+                    g.fillText(fit(r.desc, cx.debt - cx.desc - 90), cx.desc, y + rowH / 2);
+                    g.font = '600 15px ' + F; g.textAlign = 'right';
+                    if (r.debt) { g.fillStyle = red; g.fillText(money(r.debt), cx.debt, y + rowH / 2); }
+                    if (r.pay) { g.fillStyle = teal; g.fillText(money(r.pay), cx.pay, y + rowH / 2); }
+                    g.fillStyle = ink; g.fillText(money(r.bal), cx.bal, y + rowH / 2);
+                    y += rowH;
+                });
+                g.strokeStyle = ink; g.lineWidth = 1.5; g.beginPath(); g.moveTo(pad - 8, y + 4); g.lineTo(W - pad + 8, y + 4); g.stroke();
+                y += 34; g.font = '700 17px ' + F; g.textAlign = 'left'; g.fillStyle = ink; g.fillText('Seçilenlerin toplamı', cx.date, y);
+                g.textAlign = 'right'; g.fillStyle = red; g.fillText(money(tD), cx.debt, y); g.fillStyle = teal; g.fillText(money(tP), cx.pay, y); g.fillStyle = ink; g.fillText(money(tR), cx.bal, y);
+                g.font = '500 12px ' + F; g.fillStyle = soft; g.textAlign = 'left'; g.fillText('Tutarlar ABD doları ($) cinsindendir.', pad, H - 18);
+                cv.toBlob(function (blob) {
+                    if (!blob) { toast('Resim oluşturulamadı.'); return; }
+                    var sp = $('stmtPrev');
+                    if (sp._url) URL.revokeObjectURL(sp._url);
+                    sp._blob = blob; sp._name = 'Hesap Ekstresi ' + d.name + ' ' + todayStr() + '.jpg'; sp._url = URL.createObjectURL(blob);
+                    $('stmtPrevImg').src = sp._url; sp.classList.add('open');
+                }, 'image/jpeg', 0.92);
+            }
+            // Ekstre önizleme: Kapat / WhatsApp'ta paylaş / Kaydet
+            (function () {
+                var sp = $('stmtPrev');
+                function close() { sp.classList.remove('open'); if (sp._url) { URL.revokeObjectURL(sp._url); sp._url = null; } $('stmtPrevImg').removeAttribute('src'); }
+                function save() { if (!sp._blob) return; saveBlob(sp._name, sp._blob); toast('Ekstre JPG olarak kaydedildi.'); }
+                $('stmtPrevClose').addEventListener('click', close);
+                sp.addEventListener('click', function (e) { if (e.target === sp) close(); });
+                $('stmtPrevSave').addEventListener('click', save);
+                $('stmtPrevShare').addEventListener('click', async function () {
+                    if (!sp._blob) return;
+                    var text = 'Merhaba ' + cp.dataset.name + ', hesap ekstreniz ektedir.';
+                    try {
+                        var file = new File([sp._blob], sp._name, { type: 'image/jpeg' });
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: text }); return; }
+                    } catch (e) { if (e && e.name === 'AbortError') return; }
+                    saveBlob(sp._name, sp._blob);
+                    window.open('https://wa.me/' + cp.dataset.phone + '?text=' + encodeURIComponent(text), '_blank');
+                    toast('Resim kaydedildi. WhatsApp sohbetinde ataç (📎) ile ekleyip gönderin.');
+                });
+                document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && sp.classList.contains('open')) close(); });
+            })();
             // ---- Kolaj (A6 dikey, 300 dpi JPG) ----
             var cp = $('collagePrev');
+            function showPreview(blob, name, title) {
+                if (cp._url) URL.revokeObjectURL(cp._url);
+                cp._blob = blob; cp._name = name; cp._url = URL.createObjectURL(blob);
+                $('collagePrevTitle').textContent = title;
+                $('collagePrevImg').src = cp._url; cp.classList.add('open');
+            }
             function loadImg(src) { return new Promise(function (res) { var im = new Image(); im.onload = function () { res(im); }; im.onerror = function () { res(null); }; im.src = src; }); }
             function todayStr() { var d = new Date(), p = function (v) { return (v < 10 ? '0' : '') + v; }; return p(d.getDate()) + '.' + p(d.getMonth() + 1) + '.' + d.getFullYear(); }
             function saveBlob(name, blob) { var a = document.createElement('a'), u = URL.createObjectURL(blob); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 4000); }
@@ -390,9 +526,7 @@
                 });
                 cv.toBlob(function (blob) {
                     if (!blob) { alert('Kolaj oluşturulamadı.'); return; }
-                    if (cp._url) URL.revokeObjectURL(cp._url);
-                    cp._blob = blob; cp._name = 'Kolaj ' + cp.dataset.name + ' ' + todayStr() + '.jpg'; cp._url = URL.createObjectURL(blob);
-                    $('collagePrevImg').src = cp._url; cp.classList.add('open');
+                    showPreview(blob, 'Kolaj ' + cp.dataset.name + ' ' + todayStr() + '.jpg', 'Kolaj önizleme (JPG)');
                 }, 'image/jpeg', 0.92);
             }
             function closeCp() { cp.classList.remove('open'); if (cp._url) { URL.revokeObjectURL(cp._url); cp._url = null; } $('collagePrevImg').removeAttribute('src'); }

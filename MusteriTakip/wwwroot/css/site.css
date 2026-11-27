@@ -3368,7 +3368,7 @@ html body .seg-row > .back-pair .btn{margin:0 !important;}
 @media (min-width:901px){html[data-skin="kurumsal"] body .seg-row > .back-pair{flex-basis:auto; margin-right:auto !important;}}
 
 /* ==== noSelClearCss ==== */
-#kasaSelClear, #histSelClear{display:none !important;}
+#kasaSelClear{display:none !important;}
 
 /* ==== custRestRedCss ==== */
 html body .kasa-stats .kasa-stat.result:has(#activeCustRemaining){--c:#C0392B !important;}
