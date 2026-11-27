@@ -1287,17 +1287,26 @@ window.mtHide = function (el, hide) {
     function load() { try { var a = JSON.parse(ss(KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
     function save(a) { if (a.length > MAX) a = a.slice(a.length - MAX); ss(KEY, JSON.stringify(a)); }
     // Sayfa kimliği: yol (sorgu dizesi hariç). "/", "/Home", "/Home/Index" aynı sayfadır.
-    function pageKey(u) {
+    // Yalnızca "tab" parametresi ayrı bir adım sayılır (ör. müşteri sayfası ⇄ hesap hareketleri).
+    function pathKey(u) {
         var p;
         try { p = new URL(u, location.href).pathname; } catch (e) { p = '/'; }
         p = decodeURIComponent(p).toLowerCase().replace(/\/index$/, '').replace(/\/+$/, '');
         if (p === '' || p === '/home') p = '/';
         return p;
     }
-    var here = location.href, hereKey = pageKey(here);
+    function pageKey(u) {
+        var t = null;
+        try { t = new URL(u, location.href).searchParams.get('tab'); } catch (e) { }
+        return pathKey(u) + (t ? '?tab=' + t.toLowerCase() : '');
+    }
     // Giriş sayfaları geçmişe yazılmaz
-    if (/^\/account\//.test(hereKey)) return;
+    if (/^\/account\//.test(pageKey(location.href))) return;
 
+    // Sol menü hedef sayfayı arka planda önceden çizer (prerender). O sırada yapılan sessionStorage
+    // yazımları tarayıcı tarafından atılır; bu yüzden kayıt, sayfa gerçekten açıldığında yapılır.
+    function record() {
+    var here = location.href, hereKey = pageKey(here);
     var nav = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0] || {}).type || '';
     var st = load(), top = st[st.length - 1];
     if (ss(FLAG) === '1') {
@@ -1315,6 +1324,8 @@ window.mtHide = function (el, hide) {
         st.push({ k: hereKey, u: here });
     }
     save(st);
+    }
+    if (document.prerendering) document.addEventListener('prerenderingchange', record, { once: true }); else record();
 
     // Sayfada adres değişirse (ör. müşteri sekmesi replaceState ile) dönüşte o hâli açılsın
     window.addEventListener('pagehide', function () {
@@ -1331,11 +1342,26 @@ window.mtHide = function (el, hide) {
         ss(FLAG, null);
     });
 
+    // Sayfa içinde bölüm değişince (history.replaceState ile adres güncellendikten sonra) çağrılır:
+    // yeni bölüm bir adım olarak eklenir; bir önceki bölüme dönüldüyse o adım çıkarılır.
+    window.mtNavSync = function () {
+        var a = load(), k = pageKey(location.href), t = a[a.length - 1], p = a[a.length - 2];
+        if (t && t.k === k) t.u = location.href;
+        else if (p && p.k === k) { a.pop(); p.u = location.href; }
+        else a.push({ k: k, u: location.href });
+        save(a);
+    };
+
     window.mtBack = function () {
         var a = load(), k = pageKey(location.href);
         while (a.length && a[a.length - 1].k === k) a.pop();   // bu sayfayı çıkar
         var prev = a[a.length - 1];
         save(a);
+        // Önceki adım aynı sayfanın başka bir bölümüyse sayfayı yenilemeden o bölüme geç
+        if (prev && pathKey(prev.u) === pathKey(location.href) && typeof window.mtSubBack === 'function') {
+            window.mtSubBack(prev.u);
+            return;
+        }
         ss(FLAG, '1');
         location.href = prev ? prev.u : '/';                    // önceki yoksa ana sayfa
     };

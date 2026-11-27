@@ -164,6 +164,7 @@ try {
 (function(){
   var panel=document.getElementById('panelGiderler'), btn=document.getElementById('giderOpenBtn'); if(!panel||!btn) return;
   var tabs=panel.querySelector('.seg-tabs'); if(!tabs) return;
+  if(tabs.parentNode.classList.contains('seg-row')) return; // satır zaten sayfada var (Expenses/Index.cshtml) — içine ikinci bir satır açma
   var row=document.createElement('div'); row.className='seg-row';
   tabs.parentNode.insertBefore(row,tabs); row.appendChild(tabs); row.appendChild(btn);
 })();

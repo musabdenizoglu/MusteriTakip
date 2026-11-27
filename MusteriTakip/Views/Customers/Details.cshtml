@@ -294,7 +294,13 @@
                 if (window.mtFit) window.mtFit();
                 var u = new URL(location.href); if (tab === 'cari') u.searchParams.set('tab', 'cari'); else u.searchParams.delete('tab');
                 history.replaceState(null, '', u);
+                if (window.mtNavSync) window.mtNavSync();   // geri tuşu: hesap hareketlerinden müşteri sayfasına dönsün
             }
+            // Geri tuşu bu sayfanın başka bir bölümüne dönecekse sayfayı yenilemeden o bölümü aç
+            window.mtSubBack = function (url) {
+                var t = null; try { t = new URL(url, location.href).searchParams.get('tab'); } catch (e) { }
+                show(t === 'cari' ? 'cari' : 'records');
+            };
             $('openCariBtn').addEventListener('click', function () { show('cari'); });
             $('closeCariBtn').addEventListener('click', function () { show('records'); });
             // ⋯ İşlemler menüsü
