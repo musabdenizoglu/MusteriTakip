@@ -350,29 +350,35 @@ try {
 /* ==== reqBubbleJs ==== */
 try {
 (function(){
-var form=document.getElementById('recordForm');if(!form)return;form.setAttribute('novalidate','');
-var bubbles=[],armed=false;
-function $(i){return document.getElementById(i)}
-function missing(){var m=$('recordModel'),pr=$('recordPrice'),g=$('recAltinGr'),ml=$('recAltinMilyem');
+// Sipariş kartı çoğunlukla sonradan pencere olarak eklenir (data-modal): form her seferinde yeniden bulunur,
+// dinleyiciler belge düzeyindedir. Böylece boş alanlar sunucuya gitmeden HTML'deki gibi işaretlenir.
+var form=null,bubbles=[],armed=false;
+function $(i){return form&&form.querySelector('#'+i)}
+var IDS=['recordModel','recordPrice','recAltinGr','recAltinMilyem'];
+function missing(){var m=$('recordModel'),pr=$('recordPrice'),g=$('recAltinGr'),ml=$('recAltinMilyem');if(!m||!pr||!g||!ml)return[];
  var gf=g.value.trim()!=='',mf=ml.value.trim()!=='',o=[];
  if(m.value.trim()==='')o.push(m);if(gf&&!mf)o.push(ml);if(mf&&!gf)o.push(g);if(pr.value==='')o.push(pr);return o;}
 function clearB(){bubbles.forEach(function(b){b.remove()});bubbles=[];}
 function show(el){var b=document.createElement('div');b.className='rf-bubble';b.innerHTML='<i>!</i><span>Lütfen bu alanı doldurun.</span>';document.body.appendChild(b);
  var r=el.getBoundingClientRect();b.style.left=Math.max(8,r.left)+'px';b.style.top=(r.bottom+9)+'px';bubbles.push(b);}
-function render(){clearB();var miss=missing();
- ['recordModel','recordPrice','recAltinGr','recAltinMilyem'].forEach(function(id){var e=$(id);e.classList.toggle('rf-bad',armed&&miss.indexOf(e)>-1);});
+function render(){clearB();if(!form||!document.contains(form)){armed=false;return[];}var miss=missing();
+ IDS.forEach(function(id){var e=$(id);if(e)e.classList.toggle('rf-bad',armed&&miss.indexOf(e)>-1);});
  if(armed)miss.forEach(show);return miss;}
 function disarm(){armed=false;render();}
-['recordModel','recordPrice','recAltinGr','recAltinMilyem'].forEach(function(id){$(id).addEventListener('input',function(){if(armed)render();});});
-['input','change','click'].forEach(function(t){form.addEventListener(t,function(){if(armed)setTimeout(render,0);});});
+['input','change','click'].forEach(function(t){document.addEventListener(t,function(e){if(armed&&form&&form.contains(e.target))setTimeout(render,0);});});
 document.addEventListener('submit',function(ev){
- if(ev.target!==form)return;
+ if(!ev.target||ev.target.id!=='recordForm')return;
+ form=ev.target;form.setAttribute('novalidate','');
  armed=true;var miss=render();
  if(!miss.length){disarm();return;}
  ev.preventDefault();ev.stopImmediatePropagation();miss[0].focus();
+ var sum=form.querySelector('.validation-summary-errors');if(sum)sum.hidden=true;
 },true);
 window.addEventListener('resize',function(){if(armed)render()});document.addEventListener('scroll',function(){if(armed)render()},true);
-setInterval(function(){if(armed&&!form.offsetParent)disarm();},400);
+setInterval(function(){if(armed&&(!form||!form.offsetParent))disarm();},400);
+// Sunucu hatasıyla geri dönüldüyse (sayfa doğrudan açıldı) liste yerine aynı işaretleme gösterilir
+var f0=document.getElementById('recordForm'),s0=f0&&f0.querySelector('.validation-summary-errors');
+if(s0){form=f0;armed=true;var mm=render();if(mm.length){s0.hidden=true;setTimeout(function(){mm[0].focus();render();},80);}else armed=false;}
 })();
 } catch (e) { console.warn('ui-polish: reqBubbleJs', e); }
 
