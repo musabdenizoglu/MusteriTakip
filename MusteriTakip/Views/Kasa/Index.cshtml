@@ -47,6 +47,11 @@
             <div id="kasaSelBar" class="hist-selbar">
                 <label class="hsel"><input type="checkbox" id="kasaSelAll" aria-label="Tümünü seç"> <span>Tümünü seç</span></label>
                 <span id="kasaSelCnt" class="hsel-cnt"></span>
+                <button type="button" class="btn secondary sm" id="kasaSelPdf" style="display:none">Seçileni PDF yap</button>
+                <button type="button" class="btn secondary sm" id="kasaSelPng" style="display:none">Seçileni resim yap (.JPG)</button>
+                <button type="button" class="btn secondary sm" id="kasaSelClear" style="display:none">Seçimi temizle</button>
+                <button type="button" class="btn secondary sm" id="kasaSelDel" style="display:none">Seçilenleri sil</button>
+                <form method="post" asp-action="DeleteSelected" asp-route-returnUrl="@(Context.Request.Path + Context.Request.QueryString)" id="kasaSelDelForm" hidden></form>
                 <div class="hs-filter kasa-hs">
                     <div class="quick-search">
                         <label for="kasaSearch">Hızlı Arama</label>
@@ -114,9 +119,25 @@
                 var boxes = list.querySelectorAll('.hsel-box'), k = list.querySelectorAll('.hsel-box:checked').length;
                 all.checked = boxes.length > 0 && k === boxes.length; all.indeterminate = k > 0 && !all.checked;
                 cnt.textContent = k ? k + ' kayıt seçili' : '';
+                ['kasaSelPdf', 'kasaSelPng', 'kasaSelClear', 'kasaSelDel'].forEach(function (id) { $(id).style.display = k ? '' : 'none'; });
             }
             all.addEventListener('change', function () { list.querySelectorAll('.hist-row:not([hidden]) .hsel-box').forEach(function (b) { b.checked = all.checked; }); upd(); });
             list.addEventListener('change', function (e) { if (e.target.classList.contains('hsel-box')) upd(); });
+            // Seçilenlerle PDF / JPG / temizle / sil (HTML: kasaStatement, deleteKasaSelected)
+            function keys() { return Array.prototype.map.call(list.querySelectorAll('.hsel-box:checked'), function (b) { return b.dataset.key; }); }
+            var selQ = function () { return '?sel=' + encodeURIComponent(keys().join(',')); };
+            $('kasaSelPdf').addEventListener('click', function () { if (keys().length) mtStmt.pdf('@Url.Action("Statement")' + selQ(), this); });
+            $('kasaSelPng').addEventListener('click', function () { if (keys().length) mtStmt.jpg('@Url.Action("StatementData")' + selQ(), this); });
+            $('kasaSelClear').addEventListener('click', function () { list.querySelectorAll('.hsel-box').forEach(function (b) { b.checked = false; }); upd(); });
+            $('kasaSelDel').addEventListener('click', function () {
+                var k = keys(); if (!k.length) return;
+                var nPay = k.filter(function (s) { return s.indexOf('payment:') === 0; }).length, nRec = k.length - nPay, parts = [];
+                if (nPay) parts.push(nPay + ' ödeme'); if (nRec) parts.push(nRec + ' borç');
+                var f = $('kasaSelDelForm');
+                f.querySelectorAll('input[name="keys"]').forEach(function (i) { i.remove(); });
+                k.forEach(function (s) { var i = document.createElement('input'); i.type = 'hidden'; i.name = 'keys'; i.value = s; f.appendChild(i); });
+                mtAsk('Seçili ' + k.length + ' kaydı (' + parts.join(', ') + ') silmek istediğinize emin misiniz?', { okLabel: 'Sil', cancelLabel: 'Vazgeç', onOk: function () { f.submit(); } });
+            });
         })();
     </script>
 }

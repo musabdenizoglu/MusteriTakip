@@ -10,7 +10,72 @@ namespace MusteriTakip.Controllers;
 public class KasaController : Controller
 {
     private readonly LedgerService _ledger;
-    public KasaController(LedgerService ledger) { _ledger = ledger; }
+    private readonly SettingsService _settings;
+    private readonly MusteriTakip.Data.AppDbContext _db;
+    public KasaController(LedgerService ledger, SettingsService settings, MusteriTakip.Data.AppDbContext db) { _ledger = ledger; _settings = settings; _db = db; }
+
+    // ---------------- Seçilen kasa hareketleri: PDF / JPG / silme (HTML: kasaStatement, deleteKasaSelected) ----------------
+
+    static HashSet<string> Keys(string? sel) =>
+        (sel ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet();
+
+    /// <summary>Seçilenlerin müşterileri; tek müşteriyse o, birden çoksa "Seçili kayıtlar (n müşteri)".</summary>
+    private async Task<(List<MusteriTakip.Models.Customer> cs, MusteriTakip.Models.Customer head, bool multi)> SelCustomersAsync(HashSet<string> set)
+    {
+        var all = await _ledger.LoadCustomersAsync();
+        var cs = all.Where(c => c.Records.Any(r => set.Contains("price:" + r.Id)) || c.Payments.Any(p => set.Contains("payment:" + p.Id))).ToList();
+        var multi = cs.Count > 1;
+        var head = cs.Count == 1 ? cs[0] : new MusteriTakip.Models.Customer { Name = $"Seçili kayıtlar ({cs.Count} müşteri)" };
+        return (cs, head, multi);
+    }
+
+    public async Task<IActionResult> Statement(string? sel)
+    {
+        var set = Keys(sel);
+        var (cs, head, multi) = await SelCustomersAsync(set);
+        var st = await _settings.GetAsync();
+        ViewData["Embed"] = true;
+        return View("~/Views/Customers/Statement.cshtml", new StatementVm
+        {
+            Customer = head,
+            ShopName = string.IsNullOrWhiteSpace(st.ShopName) ? "Müşteri Takip" : st.ShopName!,
+            Rows = LedgerService.Statement(cs, null, null, set, multi),
+            Sel = sel
+        });
+    }
+
+    public async Task<IActionResult> StatementData(string? sel)
+    {
+        var set = Keys(sel);
+        var (cs, head, multi) = await SelCustomersAsync(set);
+        var st = await _settings.GetAsync();
+        var rows = LedgerService.Statement(cs, null, null, set, multi);
+        return Json(new
+        {
+            shop = string.IsNullOrWhiteSpace(st.ShopName) ? "Müşteri Takip" : st.ShopName,
+            name = head.Name, code = head.Code, phone = head.Phone,
+            single = !multi, waPhone = multi ? "" : Fmt.WaPhone(head.Phone),
+            rows = rows.Select(r => new { date = Fmt.Date(r.Date), desc = r.Description, debt = r.Debt, pay = r.Pay, bal = r.Balance })
+        });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteSelected(string[] keys, string? returnUrl)
+    {
+        int Id(string k, string pre) => k.StartsWith(pre) && int.TryParse(k[pre.Length..], out var v) ? v : 0;
+        var recIds = keys.Select(k => Id(k, "price:")).Where(v => v > 0).ToList();
+        var payIds = keys.Select(k => Id(k, "payment:")).Where(v => v > 0).ToList();
+        var now = DateTime.UtcNow;
+        var recs = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(_db.OrderRecords.Where(r => recIds.Contains(r.Id)));
+        var pays = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(_db.Payments.Where(p => payIds.Contains(p.Id)));
+        recs.ForEach(r => r.DeletedAt = now);
+        pays.ForEach(p => p.DeletedAt = now);
+        await _db.SaveChangesAsync();
+        var n = recs.Count + pays.Count;
+        if (n > 0) TempData["Ok"] = $"{n} kayıt çöp kutusuna taşındı.";
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return Redirect(returnUrl);
+        return RedirectToAction(nameof(Index));
+    }
 
     public async Task<IActionResult> Index(string? q, string? period)
     {

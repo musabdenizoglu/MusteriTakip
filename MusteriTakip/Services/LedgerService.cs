@@ -341,12 +341,20 @@ public class LedgerService
     /// <summary>Dolar hesabı ekstresi: devreden bakiye + dönem hareketleri + yürüyen bakiye.</summary>
     /// <param name="sel">Yalnız seçilen hareketler ("price:Id" / "payment:Id"); null ise hepsi.</param>
     public static List<StatementRow> Statement(Customer c, DateOnly? from, DateOnly? to, ISet<string>? sel = null)
+        => Statement(new[] { c }, from, to, sel, false);
+
+    /// <param name="names">Birden çok müşteri: açıklamanın başına müşteri adı yazılır (HTML: _cn).</param>
+    public static List<StatementRow> Statement(IEnumerable<Customer> cs, DateOnly? from, DateOnly? to, ISet<string>? sel, bool names)
     {
         var mv = new List<(DateOnly date, DateTime at, string desc, decimal debt, decimal pay)>();
-        foreach (var r in c.Records.Where(r => r.Price != null && (sel == null || sel.Contains("price:" + r.Id))))
-            mv.Add((r.Date, r.CreatedAt, (r.Code != null ? r.Code + " · " : "") + RecDesc(r), r.Price!.Value, 0m));
-        foreach (var p in c.Payments.Where(p => sel == null || sel.Contains("payment:" + p.Id)))
-            mv.Add((p.Date, p.CreatedAt, "Ödeme – " + PayDesc(p), 0m, PayUsd(p)));
+        foreach (var c in cs)
+        {
+            var cn = names ? c.Name + " · " : "";
+            foreach (var r in c.Records.Where(r => r.Price != null && (sel == null || sel.Contains("price:" + r.Id))))
+                mv.Add((r.Date, r.CreatedAt, cn + (r.Code != null ? r.Code + " · " : "") + RecDesc(r), r.Price!.Value, 0m));
+            foreach (var p in c.Payments.Where(p => sel == null || sel.Contains("payment:" + p.Id)))
+                mv.Add((p.Date, p.CreatedAt, cn + "Ödeme – " + PayDesc(p), 0m, PayUsd(p)));
+        }
         mv = mv.OrderBy(x => x.date).ThenBy(x => x.at).ToList();
 
         var rows = new List<StatementRow>();

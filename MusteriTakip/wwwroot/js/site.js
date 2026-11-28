@@ -492,6 +492,139 @@ window.mtHide = function (el, hide) {
         });
     }, true);
 
+    // ---------------- Seçilenlerle ekstre: PDF (yazdırma penceresi) / JPG (önizleme) ----------------
+    // HTML: runStatementPdf / drawStatementImage / showStmtPreview. Kasa sayfası kullanır.
+    window.mtStmt = (function () {
+        var toastT = 0;
+        function el(id) { return document.getElementById(id); }
+        function toast(msg) {
+            var t = el('mtToast');
+            if (!t) {
+                t = document.createElement('div'); t.id = 'mtToast'; t.setAttribute('role', 'status'); t.setAttribute('aria-live', 'polite');
+                t.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:3000;background:#222;color:#fff;padding:12px 18px;border-radius:6px;font-size:.92rem;box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:90vw;display:none';
+                document.body.appendChild(t);
+            }
+            t.textContent = msg; t.style.display = ''; clearTimeout(toastT); toastT = setTimeout(function () { t.style.display = 'none'; }, 4500);
+        }
+        function today() { var d = new Date(), p = function (v) { return (v < 10 ? '0' : '') + v; }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
+        function saveBlob(name, blob) { var a = document.createElement('a'), u = URL.createObjectURL(blob); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 4000); }
+        function money(v) { return (Number(v) || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' $'; }
+
+        // PDF: ekstre görünmez bir çerçevede hazırlanır, aynı sayfada yazdırma penceresi açılır (yeni sekme yok)
+        function pdf(url, btn) {
+            var fr = el('mtStmtFrame');
+            if (!fr) {
+                fr = document.createElement('iframe'); fr.id = 'mtStmtFrame'; fr.title = 'Ekstre yazdırma'; fr.setAttribute('aria-hidden', 'true'); fr.tabIndex = -1;
+                fr.style.cssText = 'position:fixed;width:0;height:0;border:0;left:-9999px;top:0;visibility:hidden';
+                document.body.appendChild(fr);
+            }
+            if (btn) btn.disabled = true;
+            fr.onload = function () {
+                fr.onload = null; if (btn) btn.disabled = false;
+                var old = document.title;
+                try { document.title = fr.contentDocument.title; } catch (e) { }   // PDF dosya adı bu başlıktan gelir
+                toast('Yazdır penceresinde "Hedef: PDF olarak kaydet" seçerek PDF alabilirsiniz.');
+                setTimeout(function () {
+                    try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { toast('Yazdırma bu pencerede açılamadı.'); }
+                    document.title = old;
+                }, 60);
+            };
+            fr.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();
+        }
+
+        function preview() {
+            var m = el('stmtPrev');
+            if (m) return m;
+            m = document.createElement('div'); m.className = 'confirm-modal'; m.id = 'stmtPrev';
+            m.innerHTML = '<div class="confirm-card" role="dialog" aria-label="Ekstre önizleme" style="max-width:760px;width:94vw;max-height:92vh;display:flex;flex-direction:column;gap:10px;"><h2 style="margin:0;">Ekstre önizleme (JPG)</h2><p class="field-hint" style="margin:0;">Kaydetmek için aşağıdaki Kaydet düğmesine basın.</p><div style="overflow:auto;flex:1 1 auto;border:1px solid var(--line);border-radius:8px;background:#fff;"><img id="stmtPrevImg" alt="Hesap ekstresi" style="display:block;width:100%;height:auto;"></div><div class="confirm-actions"><button class="btn secondary" id="stmtPrevClose" type="button">Kapat</button><button class="btn secondary" id="stmtPrevShare" type="button">WhatsApp\'ta paylaş</button><button class="btn" id="stmtPrevSave" type="button">Kaydet</button></div></div>';
+            document.body.appendChild(m);
+            function close() { m.classList.remove('open'); if (m._url) { URL.revokeObjectURL(m._url); m._url = null; } el('stmtPrevImg').removeAttribute('src'); }
+            function save() { if (!m._blob) return; saveBlob(m._name, m._blob); toast('Ekstre JPG olarak kaydedildi.'); }
+            el('stmtPrevClose').addEventListener('click', close);
+            m.addEventListener('click', function (e) { if (e.target === m) close(); });
+            el('stmtPrevSave').addEventListener('click', save);
+            el('stmtPrevShare').addEventListener('click', async function () {
+                if (!m._blob) return;
+                var text = (m._single ? 'Merhaba ' + m._cust + ', ' : '') + 'hesap ekstreniz ektedir.';
+                try {
+                    var file = new File([m._blob], m._name, { type: 'image/jpeg' });
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: text }); return; }
+                } catch (e) { if (e && e.name === 'AbortError') return; }
+                saveBlob(m._name, m._blob);
+                window.open('https://wa.me/' + (m._phone || '') + '?text=' + encodeURIComponent(text), '_blank');
+                toast('Resim kaydedildi. WhatsApp sohbetinde ataç (📎) ile ekleyip gönderin.');
+            });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && m.classList.contains('open')) close(); });
+            return m;
+        }
+
+        function draw(d) {
+            var rows = d.rows, W = 980, pad = 36, rowH = 34, S = 2;
+            var tD = 0, tP = 0; rows.forEach(function (r) { tD += r.debt; tP += r.pay; });
+            var tR = rows[rows.length - 1].bal;
+            var headH = 176, H = headH + 44 + rows.length * rowH + 64 + 40;
+            var cv = document.createElement('canvas'); cv.width = W * S; cv.height = H * S;
+            var g = cv.getContext('2d'); g.scale(S, S);
+            var ink = '#1C2B26', soft = '#5B655F', teal = '#2E6F5E', red = '#A63A38';
+            var F = 'system-ui, "Segoe UI", Roboto, Arial, sans-serif';
+            g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, W, H);
+            g.fillStyle = teal; g.fillRect(0, 0, W, 8);
+            g.fillStyle = ink; g.font = '700 28px ' + F; g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+            g.fillText('Hesap Ekstresi', pad, 56);
+            g.font = '500 15px ' + F; g.fillStyle = soft; g.fillText(d.shop || 'Müşteri Takip', pad, 80);
+            var now = new Date(); g.textAlign = 'right';
+            g.fillText('Düzenlenme: ' + now.toLocaleDateString('tr-TR') + ' ' + now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }), W - pad, 56);
+            g.textAlign = 'left'; g.fillStyle = ink; g.font = '700 22px ' + F;
+            g.fillText(d.name + (d.code ? '  ·  ' + d.code : ''), pad, 122);
+            g.font = '500 15px ' + F; g.fillStyle = soft;
+            g.fillText([d.phone ? 'Tel: ' + d.phone : '', 'Seçili kayıtlar (' + rows.length + ')'].filter(Boolean).join('   ·   '), pad, 148);
+            var cx = { date: pad, desc: pad + 110, debt: W - pad - 300, pay: W - pad - 150, bal: W - pad };
+            var y = headH;
+            g.fillStyle = '#F4F1E8'; g.fillRect(pad - 8, y, W - 2 * pad + 16, 36);
+            g.fillStyle = soft; g.font = '700 13px ' + F; g.textBaseline = 'middle';
+            g.textAlign = 'left'; g.fillText('TARİH', cx.date, y + 18); g.fillText('AÇIKLAMA', cx.desc, y + 18);
+            g.textAlign = 'right'; g.fillText('BORÇ', cx.debt, y + 18); g.fillText('ÖDEME', cx.pay, y + 18); g.fillText('BAKİYE', cx.bal, y + 18);
+            y += 44;
+            function fit(t, w) { if (g.measureText(t).width <= w) return t; while (t.length > 1 && g.measureText(t + '…').width > w) t = t.slice(0, -1); return t + '…'; }
+            rows.forEach(function (r, i) {
+                if (i % 2) { g.fillStyle = '#FBF9F4'; g.fillRect(pad - 8, y, W - 2 * pad + 16, rowH); }
+                g.textBaseline = 'middle'; g.font = '500 15px ' + F; g.fillStyle = ink; g.textAlign = 'left';
+                g.fillText(r.date, cx.date, y + rowH / 2);
+                g.fillText(fit(r.desc, cx.debt - cx.desc - 90), cx.desc, y + rowH / 2);
+                g.font = '600 15px ' + F; g.textAlign = 'right';
+                if (r.debt) { g.fillStyle = red; g.fillText(money(r.debt), cx.debt, y + rowH / 2); }
+                if (r.pay) { g.fillStyle = teal; g.fillText(money(r.pay), cx.pay, y + rowH / 2); }
+                g.fillStyle = ink; g.fillText(money(r.bal), cx.bal, y + rowH / 2);
+                y += rowH;
+            });
+            g.strokeStyle = ink; g.lineWidth = 1.5; g.beginPath(); g.moveTo(pad - 8, y + 4); g.lineTo(W - pad + 8, y + 4); g.stroke();
+            y += 34; g.font = '700 17px ' + F; g.textAlign = 'left'; g.fillStyle = ink; g.fillText('Seçilenlerin toplamı', cx.date, y);
+            g.textAlign = 'right'; g.fillStyle = red; g.fillText(money(tD), cx.debt, y); g.fillStyle = teal; g.fillText(money(tP), cx.pay, y); g.fillStyle = ink; g.fillText(money(tR), cx.bal, y);
+            g.font = '500 12px ' + F; g.fillStyle = soft; g.textAlign = 'left'; g.fillText('Tutarlar ABD doları ($) cinsindendir.', pad, H - 18);
+            cv.toBlob(function (blob) {
+                if (!blob) { toast('Resim oluşturulamadı.'); return; }
+                var m = preview();
+                if (m._url) URL.revokeObjectURL(m._url);
+                m._blob = blob; m._name = 'Hesap Ekstresi ' + d.name + ' ' + today() + '.jpg'; m._url = URL.createObjectURL(blob);
+                m._single = !!d.single; m._cust = d.name; m._phone = (d.waPhone || '');
+                el('stmtPrevImg').src = m._url; m.classList.add('open');
+            }, 'image/jpeg', 0.92);
+        }
+
+        // JPG: seçilen hareketler sunucudan (JSON) alınır ve resme çizilir
+        async function jpg(url, btn) {
+            if (btn) btn.disabled = true;
+            try {
+                var res = await fetch(url, { credentials: 'same-origin' });
+                if (!res.ok) throw 0;
+                var d = await res.json();
+                if (!d.rows || !d.rows.length) toast('Seçili kayıt yok.'); else draw(d);
+            } catch (e) { toast('Resim oluşturulamadı.'); }
+            if (btn) btn.disabled = false;
+        }
+        return { pdf: pdf, jpg: jpg, toast: toast };
+    })();
+
     // ---------------- Onay soran formlar ----------------
     document.addEventListener('submit', function (e) {
         var f = e.target;
