@@ -1,0 +1,79 @@
+@model ExpensesVm
+@{
+    // Kasadan açılan "Gider Ekle" penceresi (HTML: #expModal). Giderler sayfasındaki pencereyle aynı alanlar;
+    // [data-modal] ile sayfa değişmeden açılır, kayıttan sonra gelinen sayfaya (ReturnUrl) dönülür.
+    ViewData["Title"] = "Gider Ekle";
+    var f = Model.Form;
+    var back = Url.Action("Index", "Kasa");
+    const string ExpIco = "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7l6 6 4-4 8 8\"></path><path d=\"M15 17h6v-6\"></path></svg>";
+    const string MicIco = "<svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z\"/></svg>";
+}
+<div class="confirm-modal open" id="expModal" data-standalone data-back="@back">
+    <div class="confirm-card exp-card" role="dialog" aria-modal="true" aria-labelledby="expModalTitle">
+        <div class="pay-head">
+            <h2 id="expModalTitle"><span class="qa-i k-red">@Html.Raw(ExpIco)</span> Gider Ekle</h2>
+            <button type="button" class="x-close" aria-label="Kapat">✕</button>
+        </div>
+        <div id="expModalBody">
+            <form method="post" asp-controller="Expenses" asp-action="Save" class="record-form" id="expenseForm" data-expense-form>
+                <input type="hidden" name="ReturnUrl" value="@ViewData["ReturnUrl"]" data-return-url />
+                <div class="field grow exptype-small">
+                    <label for="expenseTag">Gider türü</label>
+                    <select id="expenseTag" name="Form.ExpenseTagId">
+                        <option value="">Seçin…</option>
+                        @foreach (var t in Model.Tags)
+                        {
+                            <option value="@t.Id" selected="@(f.ExpenseTagId == t.Id)">@t.Name</option>
+                        }
+                    </select>
+                    <div class="exp-tag-err" id="expenseTagErr" role="alert" hidden="@(ViewData.ModelState["Form.ExpenseTagId"]?.Errors.Count is null or 0)">Gider türü seçilmedi. Lütfen bir gider türü seçin.</div>
+                    <div class="exp-quick-tag">
+                        <input type="text" id="expQuickTag" name="Form.NewTag" value="@f.NewTag" placeholder="Yeni etiket" autocomplete="off" aria-label="Yeni gider etiketi">
+                        <button type="button" class="btn secondary sm" id="expQuickTagBtn" title="Etiketi gider türü listesine ekle" aria-label="Etiketi gider türü listesine ekle">+</button>
+                        <input type="date" id="expenseDate" name="Form.Date" value="@f.Date" class="exp-date" title="Tarih (boş bırakılırsa bugünün tarihi yazılır)" aria-label="Tarih">
+                    </div>
+                    <span class="field-hint" id="expenseTagHint"></span>
+                </div>
+                <div class="field grow">
+                    <label for="expenseNote">Açıklama</label>
+                    <div class="has-mic">
+                        <input type="text" id="expenseNote" name="Form.Note" value="@f.Note" spellcheck="true" lang="tr" placeholder="İsteğe bağlı" title="Boş bırakılırsa Genel Kasa'da Gider etiketi görünür" autocomplete="off">
+                        <button type="button" class="mic-btn" title="Sesle yaz (Türkçe)" aria-label="Sesle yaz (Türkçe)">@Html.Raw(MicIco)</button>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="expenseAmount">Tutar (₺)</label>
+                    <div class="unit-in">
+                        <input type="number" id="expenseAmount" name="Form.Amount" value="@Fmt.Input(f.Amount)" min="0" step="0.01" placeholder="0,00" required data-exp="amount">
+                        <span class="u">₺</span>
+                    </div>
+                    <span class="error" asp-validation-for="Form.Amount"></span>
+                </div>
+                <div class="field">
+                    <label for="expenseRate">Dolar kuru (₺)</label>
+                    <input type="number" id="expenseRate" name="Form.Rate" value="@Fmt.Input(f.Rate)" min="0.0001" step="0.0001" placeholder="Otomatik" data-exp="rate">
+                    <button type="button" class="btn secondary sm live-rate-btn" id="liveRateBtn" data-live-rate="expenseRate">⟳ Güncel kur</button>
+                    <span class="field-hint" id="expenseUsdPreview"></span>
+                </div>
+                <button type="submit" class="btn save-record" id="expenseSubmitBtn">Gideri Ekle</button>
+            </form>
+        </div>
+    </div>
+    <script>
+        (function () {
+            var m = document.currentScript && document.currentScript.closest('.confirm-modal') || document.getElementById('expModal');
+            var q = function (id) { return m.querySelector('#' + id); };
+            // Yeni etiket: "+" ile listeye ekle ve seç (kayıtta veritabanına eklenir)
+            q('expQuickTagBtn').addEventListener('click', function () {
+                var v = q('expQuickTag').value.trim(); if (!v) { q('expQuickTag').focus(); return; }
+                var sel = q('expenseTag'), o = document.createElement('option'); o.value = ''; o.textContent = v; o.selected = true; sel.appendChild(o);
+                q('expenseTagErr').hidden = true;
+            });
+            // Gider türü seçilmeden gönderilmesin (HTML'deki uyarı)
+            q('expenseForm').addEventListener('submit', function (e) {
+                if (!q('expenseTag').value && !q('expQuickTag').value.trim()) { e.preventDefault(); e.stopImmediatePropagation(); q('expenseTagErr').hidden = false; q('expenseTag').focus(); }
+            }, true);
+            q('expenseTag').addEventListener('change', function () { q('expenseTagErr').hidden = true; if (this.value) q('expQuickTag').value = ''; });
+        })();
+    </script>
+</div>

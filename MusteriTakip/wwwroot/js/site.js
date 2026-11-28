@@ -626,13 +626,26 @@ window.mtHide = function (el, hide) {
     })();
 
     // ---------------- Onay soran formlar ----------------
+    // Tarayıcının kendi confirm penceresi yerine sitenin soru kartı (mtAsk) açılır.
     document.addEventListener('submit', function (e) {
         var f = e.target;
-        if (f.dataset.confirm && !window.confirm(f.dataset.confirm)) { e.preventDefault(); return; }
-        if (f.dataset.confirmIf) {
+        if (f.__confirmed) { f.__confirmed = false; return; }
+        var msg = null, okLabel = 'Sil';
+        if (f.dataset.confirm) msg = f.dataset.confirm;
+        else if (f.dataset.confirmIf) {
             var cb = document.getElementById(f.dataset.confirmIf);
-            if (cb && cb.checked && !window.confirm(f.dataset.confirmText || 'Emin misiniz?')) e.preventDefault();
+            if (cb && cb.checked) { msg = f.dataset.confirmText || 'Emin misiniz?'; okLabel = 'Devam et'; }
         }
+        if (!msg) return;
+        e.preventDefault(); e.stopImmediatePropagation();
+        var submitter = e.submitter;
+        mtAsk(msg, {
+            okLabel: f.dataset.confirmOk || okLabel, cancelLabel: 'Vazgeç',
+            onOk: function () {
+                f.__confirmed = true;
+                if (f.requestSubmit) f.requestSubmit(submitter && submitter.form === f ? submitter : undefined); else f.submit();
+            }
+        });
     }, true);
 
     // Düzenleme notu: başlık + metin (ikinci balon / resim altındaki ikinci not)
@@ -1106,7 +1119,7 @@ window.mtHide = function (el, hide) {
         // Aynı anda tek ödeme türü dolu olur ($, ₺, €, altın gr, hurda); tür kutudan anlaşılır.
         // Gizli alanlar (PayType, Amount, CountAsCash) sunucuya gider; sağdaki "Hesap Sonucu" canlı hesaplanır.
         var pf = $('[data-dn-pay]', root);
-        if (pf) {
+        if (pf && $('#dnUsd', pf)) {   // kasada müşteri seçilmeden ödeme kutuları yok
             var D = {}; $$('[data-dn]', pf).forEach(function (el) { (D[el.dataset.dn] = D[el.dataset.dn] || []).push(el); });
             var hType = $('[data-dn-type]', pf), hAmt = $('[data-dn-amount]', pf), hCash = $('[data-dn-cash]', pf);
             var gP = $('#dnGoldP', pf), rT = $('#dnRate', pf), eR = $('#dnEurRate', pf), eqP = $('#pmGoldEqPriceIn', pf), chk = $('#dnGoldChk', pf);
@@ -1297,12 +1310,73 @@ window.mtHide = function (el, hide) {
         // Düzenleme kaydedilince bu sayfaya dönülsün
         m.querySelectorAll('input[data-return-url]').forEach(function (i) { if (!i.value) i.value = location.pathname + location.search; });
         initForms(m); wireModal(m, true);
+        if (window.mtCustDd) window.mtCustDd(m);   // Kasadan ödeme: müşteri listesi açık gelir
         m.querySelectorAll('script').forEach(function (old) { var s = document.createElement('script'); s.textContent = old.textContent; old.replaceWith(s); });
         // Sipariş düzenleme formu sayfa yenilenmeden kaydedilir (resim filigranı sonrası of.submit() de buraya düşer)
         $$('form', m).forEach(function (f) {
             if (f.querySelector('input[data-return-url]')) f.submit = function () { ajaxSave(f, m); };
         });
     }
+
+    // ---------------- Kasadan ödeme: müşteri seçilince kart o müşteriyle yeniden yüklenir ----------------
+    // (önceki bakiye, altın borcu, "Kalanı tahsil et" müşteriye göre gelir; sonra ödeme kutuları doldurulur)
+    document.addEventListener('change', async function (e) {
+        var inp = e.target; if (inp.id !== 'pmCust') return;
+        var m = inp.closest('.confirm-modal'), dl = m && m.querySelector('#pmCustList'); if (!dl) return;
+        var name = inp.value.trim().toLocaleLowerCase('tr-TR');
+        var opt = $$('option', dl).filter(function (o) { return o.value.toLocaleLowerCase('tr-TR') === name; })[0];
+        var hid = m.querySelector('[data-cust-id]');
+        var cleared = !name && !!hid;                           // ✕ ile silindi: kart müşterisiz hâline döner
+        if (!opt && !cleared) { if (hid) hid.remove(); return; }   // listede yok: kayıtta sunucu uyarır
+        if (opt && hid && hid.value === opt.dataset.id) return;     // aynı müşteri
+        var url = cleared ? dl.dataset.pickUrl : dl.dataset.pickUrl + (dl.dataset.pickUrl.indexOf('?') < 0 ? '?' : '&') + 'customerId=' + opt.dataset.id;
+        try {
+            var res = await fetch(url, { headers: { 'X-Modal': '1' }, credentials: 'same-origin' });
+            if (!res.ok) return;
+            var wrap = document.createElement('div'); wrap.innerHTML = await res.text();
+            var n = wrap.querySelector('.confirm-modal'); if (!n) return;
+            var ret = m.querySelector('input[data-return-url]');
+            // Girilmiş kutular (tutar, gr, hurda, tarih, açıklama, fiyat/kur) yeni karta taşınır
+            var keep = {};
+            $$('.dn-grid input[id]:not([readonly]), .dn-grid textarea[id]', m).forEach(function (x) {
+                if (x.id !== 'pmCust' && x.type !== 'checkbox' && x.value !== '') keep[x.id] = x.value;
+            });
+            // Pencere kapanıp açılmasın: yalnız içindeki kart (form) yenisiyle değiştirilir
+            var of = m.querySelector('form'), nf = n.querySelector('form'); if (!of || !nf) return;
+            Object.keys(keep).forEach(function (id) { var x = nf.querySelector('#' + id); if (x) x.value = keep[id]; });
+            nf.style.setProperty('animation', 'none', 'important');   // açılış animasyonu oynamasın, kart yerinde değişsin
+            of.replaceWith(nf); n = m;
+            initForms(m);
+            if (window.mtCustDd) window.mtCustDd(m);
+            if (!m.hasAttribute('data-standalone')) nf.submit = function () { ajaxSave(nf, m); };
+            var r2 = n.querySelector('input[data-return-url]'); if (ret && r2) r2.value = ret.value;
+            var any = $$('[data-dn]', n).filter(function (x) { return x.value.trim() !== ''; })[0];
+            if (any) any.dispatchEvent(new Event('input', { bubbles: true }));   // Hesap Sonucu yeni müşteriye göre
+            var f = cleared ? n.querySelector('#pmCust') : (any || n.querySelector('#dnUsd')); if (f) f.focus();
+        } catch (err) { }
+    });
+
+    // ---------------- Pencerelerde Enter / Tab ile sonraki kutuya geç ----------------
+    // Sırada yalnız görünen, yazılabilir kutular var (mikrofon vb. düğmeler atlanır); son kutudan sonra Kaydet'e gelinir.
+    document.addEventListener('keydown', function (e) {
+        if ((e.key !== 'Enter' && e.key !== 'Tab') || e.defaultPrevented || e.isComposing || e.ctrlKey || e.metaKey || e.altKey) return;
+        var el = e.target, m = el.closest && el.closest('.confirm-modal'); if (!m) return;
+        var t = (el.tagName || '').toLowerCase();
+        if (t === 'textarea' || t === 'button' || (t === 'input' && /^(submit|button|checkbox|radio|file)$/i.test(el.type))) return;
+        if (t !== 'input' && t !== 'select') return;
+        var f = el.form || m;
+        var list = $$('input, select, textarea', f).filter(function (x) {
+            return !x.disabled && !x.readOnly && x.type !== 'hidden' && x.tabIndex !== -1 && !/^(checkbox|radio|file)$/i.test(x.type) && x.offsetParent !== null;
+        });
+        var i = list.indexOf(el); if (i < 0) return;
+        var back = e.key === 'Tab' && e.shiftKey;
+        if (back && i === 0) return;
+        e.preventDefault();
+        var next = list[back ? i - 1 : i + 1];
+        if (next) { next.focus(); if (next.select && next.type !== 'date') try { next.select(); } catch (_) { } }
+        else if (el.id === 'pmCust') el.dispatchEvent(new Event('change', { bubbles: true }));   // kasada müşteri seçildi: kartı yükle
+        else { var s = f.querySelector('button[type=submit]'); if (s) s.focus(); }
+    });
 
     // ---------------- Sipariş düzenlemesini sayfa yenilenmeden kaydet ----------------
     // Form arka planda gönderilir. Sunucu düzenlemenin açıldığı sayfaya yönlendirir; o sayfanın

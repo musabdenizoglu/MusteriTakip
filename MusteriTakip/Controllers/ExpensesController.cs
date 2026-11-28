@@ -28,9 +28,19 @@ public class ExpensesController : Controller
         return View(vm);
     }
 
-    [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Save([Bind(Prefix = "Form")] ExpenseFormVm form)
+    // GET /Expenses/Create — kasadan açılan "Gider Ekle" penceresi (sayfa değişmeden, data-modal)
+    public async Task<IActionResult> Create()
     {
+        var vm = new ExpensesVm();
+        vm.Form.Date = Fmt.InputDate(Dates.Today);
+        vm.Tags = await _db.ExpenseTags.OrderBy(t => t.SortOrder).ThenBy(t => t.Name).ToListAsync();
+        return View("Form", vm);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Save([Bind(Prefix = "Form")] ExpenseFormVm form, string? returnUrl)
+    {
+        var fromModal = !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl);
         ExpenseTag? tag = null;
         if (!string.IsNullOrWhiteSpace(form.NewTag))
         {
@@ -48,6 +58,7 @@ public class ExpensesController : Controller
         {
             var vm = new ExpensesVm { Form = form };
             await FillAsync(vm);
+            if (fromModal) { ViewData["ReturnUrl"] = returnUrl; return View("Form", vm); }
             return View("Index", vm);
         }
 
@@ -69,6 +80,7 @@ public class ExpensesController : Controller
         e.Date = Dates.ParseOrToday(form.Date);
         await _db.SaveChangesAsync();
         TempData["Ok"] = form.Id != null ? "Gider güncellendi." : "Gider eklendi.";
+        if (fromModal) return Redirect(returnUrl!);
         return RedirectToAction(nameof(Index));
     }
 

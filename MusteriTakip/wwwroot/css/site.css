@@ -3876,7 +3876,7 @@ html body #payModal #pmCustDd[hidden]{display:none}
 html body #payModal #pmCustDd{opacity:0;transform:translateY(-14px);transition:opacity .18s ease, transform .18s ease;pointer-events:none}
 html body #payModal #pmCustDd.open{opacity:1;transform:translateY(0);pointer-events:auto}
 html body #payModal input#pmCust{padding-right:40px !important}
-html body #payModal #pmCustArrow{position:absolute;right:4px;top:auto;width:34px;height:40px;display:flex;align-items:center;justify-content:center;background:transparent !important;border:0 !important;box-shadow:none !important;padding:0;margin:0;cursor:pointer;color:var(--ink-soft,#666);border-radius:8px;z-index:2}
+html body #payModal #pmCustArrow{position:absolute;right:4px;top:auto;bottom:0;width:34px;height:40px;display:flex;align-items:center;justify-content:center;background:transparent !important;border:0 !important;box-shadow:none !important;padding:0;margin:0;cursor:pointer;color:var(--ink-soft,#666);border-radius:8px;z-index:2}
 html body #payModal #pmCustArrow:hover{color:var(--ink,#222)}
 html body #payModal #pmCustArrow svg{transition:transform .18s ease}
 html body #payModal #pmCustArrow.open svg{transform:rotate(180deg)}
@@ -4138,3 +4138,21 @@ html body .hist-row > .hist-date small.ed, html body #recordsList .rec-row > .re
 #payModal .dn-grid #dnHas{font-weight:700;cursor:default}
 #payModal .dn-grid .dn-date{grid-column:span 2;max-width:190px}
 @media (max-width:480px){ #payModal .pm-grid.dn-grid{grid-template-columns:1fr 1fr} }
+
+/* Kasadan ödeme: müşteri seçilince kart yeniden yüklenirken açılış animasyonu oynamasın */
+.confirm-modal.no-anim, .confirm-modal.no-anim .confirm-card { animation: none !important; transition: none !important; }
+#payModal .pm-wait { margin: 6px 0 0; opacity: .7; font-size: 14px; }
+
+/* Müşteri kutusu: ✕ (adı sil) — açma okunun solunda */
+html body #payModal #pmCustClear{position:absolute;right:38px;top:auto;bottom:0;width:28px;height:40px;display:flex;align-items:center;justify-content:center;background:transparent !important;border:0 !important;box-shadow:none !important;padding:0;margin:0;cursor:pointer;color:var(--ink-soft,#666);border-radius:8px;z-index:2}
+html body #payModal #pmCustClear:hover{color:#C0392B}
+html body #payModal #pmCustClear[hidden]{display:none}
+html body #payModal #pmCust{padding-right:70px}
+
+/* Ödeme kartı: boş zorunlu kutu (sipariş kartındaki rf-bad ile aynı görünüm) */
+html body #payModal #payForm input.rf-bad, html body #payModal #payForm input.rf-bad:focus,
+html[data-skin] body #payModal #payForm input.rf-bad, html[data-skin] body #payModal #payForm input.rf-bad:focus{background:#fdeaea !important;border-color:#e9a3a3 !important;box-shadow:none !important;outline:none !important;color:inherit !important}
+html[data-theme="dark"] body #payModal #payForm input.rf-bad, html[data-theme="dark"] body #payModal #payForm input.rf-bad:focus{background:rgba(220,80,80,.2) !important;border-color:#a45656 !important}
+@media (prefers-color-scheme: dark){html:not([data-theme="light"]) body #payModal #payForm input.rf-bad{background:rgba(220,80,80,.2) !important;border-color:#a45656 !important}}
+html[data-skin][data-theme="dark"]:not(.zz):not(.zy):not(.zx):not(.zw):not(.zv) body #payModal #payForm input.rf-bad{background:rgba(220,80,80,.2) !important;border-color:#a45656 !important;box-shadow:none !important}
+@media (prefers-color-scheme: dark){html[data-skin]:not([data-theme="light"]):not(.zz):not(.zy):not(.zx):not(.zw):not(.zv) body #payModal #payForm input.rf-bad{background:rgba(220,80,80,.2) !important;border-color:#a45656 !important;box-shadow:none !important}}

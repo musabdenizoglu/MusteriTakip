@@ -2,7 +2,8 @@
 @{
     var isNew = Model.Id == null;
     ViewData["Title"] = isNew ? "Ödeme Ekle" : "Ödemeyi Düzenle";
-    var pickCustomer = isNew && Model.FromKasa && !(Model.CustomerId > 0);
+    // Kasadan yeni ödeme: müşteri kartın içinde seçilir; seçilince bakiye/altın borcu o müşteriye göre yenilenir (girilenler korunur)
+    var pickCustomer = isNew && Model.FromKasa;
     var back = Model.CustomerId > 0 ? Url.Action("Details", "Customers", new { id = Model.CustomerId, tab = "cari" }) : Url.Action("Index", "Kasa");
     var hasGold = Model.GoldRemaining > 0.0005m;
     // Düzenlemede görünen kutuya dolacak değerler (tek ödeme türü dolu olur)
@@ -21,7 +22,10 @@
     @if (!pickCustomer)
     {
         <p class="pay-cust">@Model.CustomerName</p>
-        <input type="hidden" asp-for="CustomerId" />
+    }
+    @if (Model.CustomerId > 0)
+    {
+        <input type="hidden" asp-for="CustomerId" data-cust-id />
     }
     <input type="hidden" asp-for="FromKasa" />
     <input type="hidden" name="ReturnUrl" value="@Model.ReturnUrl" data-return-url />
@@ -34,13 +38,13 @@
     <div class="pm-grid dn-grid">
         @if (pickCustomer)
         {
-            <div class="field pm-full">
-                <label asp-for="CustomerName">Müşteri</label>
-                <input asp-for="CustomerName" list="pmCustList" class="upper" autocomplete="off" placeholder="Seçin / yazın" />
-                <datalist id="pmCustList">
+            <div class="field pm-full" id="pmCustWrap">
+                <label asp-for="CustomerName" for="pmCust">Müşteri</label>
+                <input asp-for="CustomerName" id="pmCust" list="pmCustList" class="upper" autocomplete="off" placeholder="Seçin / yazın" />
+                <datalist id="pmCustList" data-pick-url="@Url.Action("Create", "Payments", new { fromKasa = true })">
                     @foreach (var c in Model.Customers)
                     {
-                        <option value="@c.Name"></option>
+                        <option value="@c.Name" data-id="@c.Id"></option>
                     }
                 </datalist>
             </div>

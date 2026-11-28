@@ -382,6 +382,48 @@ if(s0){form=f0;armed=true;var mm=render();if(mm.length){s0.hidden=true;setTimeou
 })();
 } catch (e) { console.warn('ui-polish: reqBubbleJs', e); }
 
+/* ==== payReqBubbleJs ==== */
+// Ödeme kartı (kasa / müşteri): sipariş kartındaki gibi boş zorunlu kutular kırmızımsı olur, altında "Lütfen bu alanı doldurun." balonu çıkar.
+// Kurallar: müşteri seçilmeli; $/₺/€/altın gr/hurda gr'dan biri dolu olmalı (hiçbiri yoksa hepsi işaretlenir, balon $ kutusunda);
+// hurda gr varsa milyem, milyem varsa hurda gr gerekir.
+try {
+(function(){
+var form=null,bubbles=[],armed=false;
+function q(i){return form&&form.querySelector('#'+i)}
+function val(i){var e=q(i);return e?e.value.trim():''}
+var IDS=['pmCust','dnUsd','dnTl','dnEur','dnGram','dnHurdaGr','dnHurdaMil'];
+function missing(){ // [işaretlenecekler, balon gösterilecekler]
+ var bad=[],tip=[],c=q('pmCust');
+ if(c&&c.value.trim()===''){bad.push(c);tip.push(c);}
+ var hg=val('dnHurdaGr'),hm=val('dnHurdaMil');
+ if(!val('dnUsd')&&!val('dnTl')&&!val('dnEur')&&!val('dnGram')&&!hg&&!hm){
+  ['dnUsd','dnTl','dnEur','dnGram','dnHurdaGr'].forEach(function(i){var e=q(i);if(e)bad.push(e);});
+  if(q('dnUsd'))tip.push(q('dnUsd'));
+ }
+ else if(hg&&!hm){bad.push(q('dnHurdaMil'));tip.push(q('dnHurdaMil'));}
+ else if(hm&&!hg){bad.push(q('dnHurdaGr'));tip.push(q('dnHurdaGr'));}
+ return [bad,tip];}
+function clearB(){bubbles.forEach(function(b){b.remove()});bubbles=[];}
+function show(el){if(!el.offsetParent)return;var b=document.createElement('div');b.className='rf-bubble';b.innerHTML='<i>!</i><span>Lütfen bu alanı doldurun.</span>';document.body.appendChild(b);
+ var r=el.getBoundingClientRect();b.style.left=Math.max(8,r.left)+'px';b.style.top=(r.bottom+9)+'px';bubbles.push(b);}
+function render(){clearB();if(!form||!document.contains(form)){armed=false;return[];}var m=missing();
+ IDS.forEach(function(id){var e=q(id);if(e)e.classList.toggle('rf-bad',armed&&m[0].indexOf(e)>-1);});
+ if(armed)m[1].forEach(show);return m[0];}
+function disarm(){armed=false;render();}
+['input','change','click'].forEach(function(t){document.addEventListener(t,function(e){if(armed&&form&&document.contains(form)&&form.contains(e.target))setTimeout(render,0);});});
+document.addEventListener('submit',function(ev){
+ if(!ev.target||ev.target.id!=='payForm')return;
+ form=ev.target;armed=true;var miss=render();
+ if(!miss.length){disarm();return;}
+ ev.preventDefault();ev.stopImmediatePropagation();
+ var first=miss.filter(function(e){return e.offsetParent})[0];if(first)first.focus();
+ var sum=form.querySelector('#pmError');if(sum)sum.hidden=true;
+},true);
+window.addEventListener('resize',function(){if(armed)render()});document.addEventListener('scroll',function(){if(armed)render()},true);
+setInterval(function(){if(armed&&(!form||!form.offsetParent))disarm();},400);
+})();
+} catch (e) { console.warn('ui-polish: payReqBubbleJs', e); }
+
 /* ==== codeFit ==== */
 try {
 (function(){
@@ -506,15 +548,32 @@ try {
 
 /* ==== pmCustDdJs ==== */
 try {
-(function(){
-  var inp=document.getElementById('pmCust'), wrap=document.getElementById('pmCustWrap'), dl=document.getElementById('pmCustList'); if(!inp||!wrap||!dl) return;
+// Modal sonradan eklendiği için çağrılabilir: window.mtCustDd(kök). Liste açılışta kendiliğinden açılır.
+window.mtCustDd = function(root){
+  root=root||document;
+  var inp=root.querySelector('#pmCust'), wrap=root.querySelector('#pmCustWrap'), dl=root.querySelector('#pmCustList'); if(!inp||!wrap||!dl||inp.dataset.dd) return;
+  inp.dataset.dd='1';
+  var modal=inp.closest('.confirm-modal')||document.getElementById('payModal');
   inp.removeAttribute('list');   // tarayıcının kendi listesi, isim otomatik tamamlanınca açılmıyordu
   var dd=document.createElement('div'); dd.id='pmCustDd'; dd.hidden=true; dd.setAttribute('role','listbox'); wrap.appendChild(dd);
   var hi=-1, items=[], picking=false, isOpen=false, hideT=null;
   var arrow=document.createElement('button'); arrow.type='button'; arrow.id='pmCustArrow'; arrow.tabIndex=-1; arrow.setAttribute('aria-label','Müşteri listesini aç/kapat');
   arrow.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   wrap.appendChild(arrow);
-  function place(){ if(inp.offsetHeight){ arrow.style.height=inp.offsetHeight+'px'; arrow.style.top=inp.offsetTop+'px'; } }
+  // ✕: müşteri adını tek basışta siler (ad yazılıyken görünür)
+  var clr=document.createElement('button'); clr.type='button'; clr.id='pmCustClear'; clr.tabIndex=-1; clr.title='Müşteriyi temizle'; clr.setAttribute('aria-label','Müşteriyi temizle');
+  clr.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+  wrap.appendChild(clr);
+  function syncClr(){ clr.hidden=!inp.value.trim(); }
+  clr.addEventListener('mousedown', function(e){ e.preventDefault(); });
+  clr.addEventListener('click', function(){
+    inp.value=''; syncClr(); inp.focus();
+    inp.dispatchEvent(new Event('input',{bubbles:true})); inp.dispatchEvent(new Event('change',{bubbles:true}));
+  });
+  inp.addEventListener('input', syncClr); syncClr();
+  function place(){ if(inp.offsetHeight){ arrow.style.height=clr.style.height=inp.offsetHeight+'px'; arrow.style.top=clr.style.top=inp.offsetTop+'px'; } }
+  // Ok baştan kutunun içine otursun (liste açılmadan da; müşteri seçilip kart yenilenince de)
+  place(); requestAnimationFrame(place); setTimeout(place, 250); window.addEventListener('resize', place);
   function show(){ clearTimeout(hideT); place(); dd.hidden=false; void dd.offsetWidth; dd.classList.add('open'); arrow.classList.add('open'); isOpen=true; }
   arrow.addEventListener('mousedown', function(e){ e.preventDefault(); if(isOpen){ close(); } else { if(document.activeElement!==inp) inp.focus(); render(); } });
   function low(t){ return String(t||'').toLocaleLowerCase('tr-TR'); }
@@ -549,7 +608,16 @@ try {
     inp.dispatchEvent(ev); inp.dispatchEvent(new Event('change',{bubbles:true}));
     setTimeout(function(){ picking=false; },50);
   }
-  inp.addEventListener('input', function(){ if(picking) return; setTimeout(render,0); });
+  // Yazarken baştan eşleşen ilk müşteriyi tanır, kalanını seçili olarak tamamlar (silerken tamamlamaz)
+  function complete(e){
+    if(e && e.inputType && e.inputType.indexOf('delete')===0) return;
+    var v=inp.value, a=inp.selectionStart; if(!v.trim() || a!==v.length) return;
+    var q=low(v), hit=names().filter(function(n){ return low(n).indexOf(q)===0; })[0];
+    if(!hit || hit.length<=v.length) return;
+    inp.value=hit;   // küçük harfle yazılsa da kayıtlı yazımıyla gelsin
+    try{ inp.setSelectionRange(v.length, inp.value.length); }catch(_){}
+  }
+  inp.addEventListener('input', function(e){ if(picking) return; complete(e); setTimeout(render,0); });
   inp.addEventListener('focus', function(){ setTimeout(render,0); });
   inp.addEventListener('click', function(){ if(!isOpen) render(); });
   inp.addEventListener('blur', function(){ setTimeout(close,150); });
@@ -558,8 +626,11 @@ try {
     else if(e.key==='Enter' && isOpen && hi>=0 && items[hi]){ e.preventDefault(); e.stopPropagation(); pick(items[hi]); }
     else if(e.key==='Escape' && isOpen){ e.preventDefault(); e.stopPropagation(); close(); }
   }, true);
-  new MutationObserver(function(){ if(!document.getElementById('payModal').classList.contains('open')){ if(isOpen) close(); } else setTimeout(place, 50); }).observe(document.getElementById('payModal'),{attributes:true,attributeFilter:['class']});
-})();
+  if(modal) new MutationObserver(function(){ if(!modal.classList.contains('open')){ if(isOpen) close(); } else setTimeout(place, 50); }).observe(modal,{attributes:true,attributeFilter:['class']});
+  // Kasadan açılınca müşteri listesi kendiliğinden açılsın
+  if(!inp.value.trim()) setTimeout(function(){ inp.focus(); render(); }, 60);
+};
+window.mtCustDd(document);
 } catch (e) { console.warn('ui-polish: pmCustDdJs', e); }
 
 /* ==== recNoteEnter ==== */
