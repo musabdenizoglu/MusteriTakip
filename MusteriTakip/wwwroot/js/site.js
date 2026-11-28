@@ -1217,6 +1217,8 @@ window.mtHide = function (el, hide) {
         function close() {
             window.__dropImg = null;   // vazgeçildi: butona bırakılan resim bir sonraki siparişe taşınmasın
             if (injected) { m.classList.remove('open'); setTimeout(function () { m.remove(); }, 200); }
+            // Pencere ayrı bir sayfa sayılmaz: kapatınca altında kalan (gelinen) sayfaya dönülür
+            else if (window.mtHasPrev && window.mtHasPrev()) window.mtBack();
             else if (m.dataset.back) location.href = m.dataset.back;
             else history.back();
         }
@@ -1435,10 +1437,18 @@ window.mtHide = function (el, hide) {
     }
     // Giriş sayfaları geçmişe yazılmaz
     if (/^\/account\//.test(pageKey(location.href))) return;
+    // Açılır kart / pencere olarak gelen sayfalar (Yeni Sipariş, Ödeme Ekle, Borç Ekle, Müşteri formu…)
+    // bir adım sayılmaz: Geri, pencerenin altındaki (gelinen) sayfaya döner.
+    var modalPage = !!document.querySelector('.confirm-modal[data-standalone]');
+    window.mtHasPrev = function () {
+        var k = pageKey(location.href);
+        return load().some(function (x) { return x.k !== k; });
+    };
 
     // Sol menü hedef sayfayı arka planda önceden çizer (prerender). O sırada yapılan sessionStorage
     // yazımları tarayıcı tarafından atılır; bu yüzden kayıt, sayfa gerçekten açıldığında yapılır.
     function record() {
+    if (modalPage) { ss(FLAG, null); return; }
     var here = location.href, hereKey = pageKey(here);
     var nav = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0] || {}).type || '';
     var st = load(), top = st[st.length - 1];
@@ -1467,7 +1477,7 @@ window.mtHide = function (el, hide) {
     });
     // Tarayıcı önbelleğinden geri gelindiyse yığını bu sayfaya göre düzelt
     window.addEventListener('pageshow', function (e) {
-        if (!e.persisted) return;
+        if (!e.persisted || modalPage) return;
         var a = load(), k = pageKey(location.href), i = -1;
         for (var j = a.length - 1; j >= 0; j--) if (a[j].k === k) { i = j; break; }
         if (i >= 0) a.length = i + 1; else a.push({ k: k, u: location.href });
