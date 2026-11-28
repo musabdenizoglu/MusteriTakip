@@ -251,11 +251,11 @@ public class PaymentFormVm
     public List<Customer> Customers { get; set; } = new();
     public bool FromKasa { get; set; }
 
-    /// <summary>"Altın" ya da "Kalıp".</summary>
-    public string Kind { get; set; } = "Altın";
+    /// <summary>"Altın", "Kalıp" ya da boş (nakit hesabına işlenen $/₺/€ ödeme).</summary>
+    public string? Kind { get; set; } = "Altın";
     /// <summary>gr (has), hurda, usd, tl — Kalıp'ta kullanılmaz.</summary>
-    public string PayType { get; set; } = "usd";
-    public string Method { get; set; } = "Nakit";
+    public string? PayType { get; set; } = "usd";
+    public string? Method { get; set; } = "Nakit";
 
     public decimal? Amount { get; set; }
     public decimal? Gram { get; set; }

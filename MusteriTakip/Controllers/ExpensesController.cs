@@ -16,25 +16,40 @@ public class ExpensesController : Controller
 
     public async Task<IActionResult> Index(string? period, int? edit)
     {
+        // Eski "?edit=" bağlantıları: düzenleme artık ayrı pencere (Edit) ile açılır
+        if (edit != null) return RedirectToAction(nameof(Edit), new { id = edit.Value, returnUrl = Url.Action(nameof(Index)) });
         var vm = new ExpensesVm { Period = period };
-        if (edit != null)
-        {
-            var e = await _db.Expenses.FindAsync(edit.Value);
-            if (e != null)
-                vm.Form = new ExpenseFormVm { Id = e.Id, ExpenseTagId = e.ExpenseTagId, Note = e.Note, Amount = e.Amount, Rate = e.Rate, Date = Fmt.InputDate(e.Date) };
-        }
-        else vm.Form.Date = Fmt.InputDate(Dates.Today);
         await FillAsync(vm);
         return View(vm);
     }
 
-    // GET /Expenses/Create — kasadan açılan "Gider Ekle" penceresi (sayfa değişmeden, data-modal)
-    public async Task<IActionResult> Create()
+    // GET /Expenses/Create — "Gider Ekle" penceresi (Giderler ve Kasa'dan, sayfa değişmeden, data-modal)
+    public async Task<IActionResult> Create(string? returnUrl)
     {
         var vm = new ExpensesVm();
         vm.Form.Date = Fmt.InputDate(Dates.Today);
         vm.Tags = await _db.ExpenseTags.OrderBy(t => t.SortOrder).ThenBy(t => t.Name).ToListAsync();
+        SetReturn(returnUrl);
         return View("Form", vm);
+    }
+
+    // GET /Expenses/Edit/5 — "Gideri Düzenle" penceresi (sayfa değişmeden, data-modal)
+    public async Task<IActionResult> Edit(int id, string? returnUrl)
+    {
+        var e = await _db.Expenses.FindAsync(id);
+        if (e == null) return NotFound();
+        var vm = new ExpensesVm
+        {
+            Form = new ExpenseFormVm { Id = e.Id, ExpenseTagId = e.ExpenseTagId, Note = e.Note, Amount = e.Amount, Rate = e.Rate, Date = Fmt.InputDate(e.Date) },
+            Tags = await _db.ExpenseTags.OrderBy(t => t.SortOrder).ThenBy(t => t.Name).ToListAsync()
+        };
+        SetReturn(returnUrl);
+        return View("Form", vm);
+    }
+
+    private void SetReturn(string? returnUrl)
+    {
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) ViewData["ReturnUrl"] = returnUrl;
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -58,8 +73,8 @@ public class ExpensesController : Controller
         {
             var vm = new ExpensesVm { Form = form };
             await FillAsync(vm);
-            if (fromModal) { ViewData["ReturnUrl"] = returnUrl; return View("Form", vm); }
-            return View("Index", vm);
+            if (fromModal) ViewData["ReturnUrl"] = returnUrl;
+            return View("Form", vm);
         }
 
         Expense e;
@@ -80,6 +95,7 @@ public class ExpensesController : Controller
         e.Date = Dates.ParseOrToday(form.Date);
         await _db.SaveChangesAsync();
         TempData["Ok"] = form.Id != null ? "Gider güncellendi." : "Gider eklendi.";
+        TempData["EditedRec"] = "expense:" + e.Id;   // dönülen sayfada bu giderin satırı kısa süre yeşil yanar
         if (fromModal) return Redirect(returnUrl!);
         return RedirectToAction(nameof(Index));
     }

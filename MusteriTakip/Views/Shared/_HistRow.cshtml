@@ -37,7 +37,7 @@
     var rowHref = type == "expense" ? Url.Action("Index", "Expenses") : detailsUrl;
     var search = string.Join(" ", new[] { m.CustomerName, descMain, descSub, descPlain, kindTxt, x?.Note, x != null ? LedgerService.ExpenseLabel(x) : null, r?.Code, Fmt.Date(m.Date), m.Date.ToString("yyyy-MM-dd"), Fmt.EditSearch(m.EditedAt), type == "payment" ? "ödeme" : (type == "expense" ? "gider" : "borç") }.Where(s => !string.IsNullOrWhiteSpace(s))).ToLower(Fmt.Tr);
 }
-<div class="hist-row@(kasa ? " kasa-row" : "") kr-@type" @(kasa ? Html.Raw("tabindex=\"0\" data-kb=\"1\" role=\"button\"") : null) data-rec="@(m.Type == MovementType.Order ? (int?)m.Id : null)" data-s="@search" data-d="@m.Date.ToString("yyyy-MM-dd")" data-href="@(kasa ? rowHref : null)">
+<div class="hist-row@(kasa ? " kasa-row" : "") kr-@type" @(kasa ? Html.Raw("tabindex=\"0\" data-kb=\"1\" role=\"button\"") : null) data-rec="@key" data-s="@search" data-d="@m.Date.ToString("yyyy-MM-dd")" data-href="@(kasa ? rowHref : null)">
     @if (type != "expense")
     {
         <label class="hsel hsel-cell"><input type="checkbox" class="hsel-box" data-key="@key" aria-label="Kaydı seç"></label>
@@ -127,7 +127,7 @@
                 <form method="post" asp-controller="Payments" asp-action="Delete" asp-route-id="@m.Id" asp-route-returnUrl="@returnUrl" class="inline" data-confirm="Bu ödeme çöp kutusuna taşınsın mı?"><button class="del" type="submit" title="Sil" aria-label="Sil">✕</button></form>
                 break;
             default:
-                <button type="button" class="edit" data-href="@Url.Action("Index", "Expenses", new { edit = m.Id })" title="Düzenle" aria-label="Düzenle">✎</button>
+                <button type="button" class="edit" data-modal data-href="@Url.Action("Edit", "Expenses", new { id = m.Id })" title="Düzenle" aria-label="Düzenle">✎</button>
                 <form method="post" asp-controller="Expenses" asp-action="Delete" asp-route-id="@m.Id" class="inline" data-confirm="Bu gider çöp kutusuna taşınsın mı?"><button class="del" type="submit" title="Sil" aria-label="Sil">✕</button></form>
                 break;
         }

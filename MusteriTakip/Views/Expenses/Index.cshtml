@@ -1,30 +1,26 @@
 @model ExpensesVm
 @{
-    // Görünüm referans musteritakip.html → #panelGiderler ve "Gider Ekle" penceresi (#expModal) ile aynı yapıdadır.
+    // Görünüm referans musteritakip.html → #panelGiderler ile aynı yapıdadır.
+    // "Gider Ekle" ve "Düzenle" pencereleri (Expenses/Form) data-modal ile sayfa yenilenmeden açılır ve kaydedilir.
     ViewData["Title"] = "Giderler";
     ViewData["ContentClass"] = "exp-mode";
-    var f = Model.Form;
-    var editing = f.Id != null;
-    // Pencere açık mı? Düzenleme, hata ya da "Gider Ekle" ile gelindiyse açık başlar.
-    var openModal = editing || !ViewData.ModelState.IsValid;
     const string ExpIco = "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7l6 6 4-4 8 8\"></path><path d=\"M15 17h6v-6\"></path></svg>";
-    const string MicIco = "<svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z\"/></svg>";
 }
 
 <div class="home-panel active" id="panelGiderler">
     <div class="seg-row">
         <span class="back-pair"><a class="btn secondary panel-back" id="backFromGiderlerBtn" asp-controller="Home" asp-action="Index">← Ana Sayfaya Dön</a><button type="button" class="btn secondary back-step" title="Geri: önceki sayfaya dön" aria-label="Geri" data-back><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg></button></span>
         <partial name="_KasaTabs" model="@("panelGiderler")" />
-        <button type="button" class="qa" id="giderOpenBtn"><span class="qa-i k-red">@Html.Raw(ExpIco)</span>Gider Ekle</button>
+        <a class="qa" id="giderOpenBtn" data-modal asp-action="Create"><span class="qa-i k-red">@Html.Raw(ExpIco)</span>Gider Ekle</a>
     </div>
     <div class="card activity-card exp-list-card">
         <div class="records-head exp-head"><h2>Giderler</h2></div>
-        <div id="expenseList">
+        <div id="expenseList" data-sync="html">
             @foreach (var e in Model.Items)
             {
                 var usd = LedgerService.ExpenseUsd(e);
                 var note = (e.Note ?? "").Trim();
-                <div class="hist-row">
+                <div class="hist-row" data-rec="expense:@e.Id">
                     <span class="hist-desc" style="font-weight:600;flex:1.3;"><span class="exp-type-in"><span class="exp-tag-line first"><span class="kind-tag k-gider">@LedgerService.ExpenseLabel(e)</span></span>@if (e.Rate > 0)
                         {<span class="exp-rate">kur @Ui.Rate(e.Rate.Value)</span>}</span></span>
                     <span class="exp-note-col@(note == "" ? " empty" : "")" title="@note">@(note == "" ? "—" : note)</span>
@@ -34,100 +30,20 @@
                         else
                         {<span class="usd-missing">kur girilmedi</span>}</span>
                     <div class="row-actions">
-                        <button type="button" class="edit" data-href="@Url.Action("Index", new { edit = e.Id })" title="Düzenle" aria-label="Düzenle: @LedgerService.ExpenseLabel(e), @Fmt.Date(e.Date)">✎</button>
+                        <button type="button" class="edit" data-modal data-href="@Url.Action("Edit", new { id = e.Id })" title="Düzenle" aria-label="Düzenle: @LedgerService.ExpenseLabel(e), @Fmt.Date(e.Date)">✎</button>
                         <form method="post" asp-action="Delete" asp-route-id="@e.Id" class="inline" data-confirm="Bu gider çöp kutusuna taşınsın mı?"><button class="del" type="submit" title="Sil" aria-label="Sil: @LedgerService.ExpenseLabel(e), @Fmt.Date(e.Date)">✕</button></form>
                     </div>
                 </div>
             }
         </div>
-        @if (Model.Items.Count == 0)
-        {
-            <div class="empty-note" id="expenseEmptyNote"><div class="es"><div class="es-t">Henüz gider yok</div><div class="es-s">“Gider Ekle” ile ilk giderinizi ekleyin; kategoriye göre raporlanır.</div></div></div>
-        }
-    </div>
-</div>
-
-@* ---------- Gider Ekle / Düzenle penceresi (HTML: #expModal) ---------- *@
-<div class="confirm-modal@(openModal ? " open" : "")" id="expModal">
-    <div class="confirm-card exp-card" role="dialog" aria-modal="true" aria-labelledby="expModalTitle">
-        <div class="pay-head">
-            <h2 id="expModalTitle"><span class="qa-i k-red">@Html.Raw(ExpIco)</span> @(editing ? "Gideri Düzenle" : "Gider Ekle")</h2>
-            <button type="button" class="x-close" id="expModalX" aria-label="Kapat">✕</button>
-        </div>
-        <div id="expModalBody">
-            <form method="post" asp-action="Save" class="record-form" id="expenseForm" data-expense-form>
-                <input type="hidden" asp-for="Form.Id" />
-                <div class="field grow exptype-small">
-                    <label for="expenseTag">Gider türü</label>
-                    <select id="expenseTag" name="Form.ExpenseTagId">
-                        <option value="">Seçin…</option>
-                        @foreach (var t in Model.Tags)
-                        {
-                            <option value="@t.Id" selected="@(f.ExpenseTagId == t.Id)">@t.Name</option>
-                        }
-                    </select>
-                    <div class="exp-tag-err" id="expenseTagErr" role="alert" hidden="@(ViewData.ModelState["Form.ExpenseTagId"]?.Errors.Count is null or 0)">Gider türü seçilmedi. Lütfen bir gider türü seçin.</div>
-                    <div class="exp-quick-tag">
-                        <input type="text" id="expQuickTag" name="Form.NewTag" value="@f.NewTag" placeholder="Yeni etiket" autocomplete="off" aria-label="Yeni gider etiketi">
-                        <button type="button" class="btn secondary sm" id="expQuickTagBtn" title="Etiketi gider türü listesine ekle" aria-label="Etiketi gider türü listesine ekle">+</button>
-                        <input type="date" id="expenseDate" name="Form.Date" value="@f.Date" class="exp-date" title="Tarih (boş bırakılırsa bugünün tarihi yazılır)" aria-label="Tarih">
-                    </div>
-                    <span class="field-hint" id="expenseTagHint"></span>
-                </div>
-                <div class="field grow">
-                    <label for="expenseNote">Açıklama</label>
-                    <div class="has-mic">
-                        <input type="text" id="expenseNote" name="Form.Note" value="@f.Note" spellcheck="true" lang="tr" placeholder="İsteğe bağlı" title="Boş bırakılırsa Genel Kasa'da Gider etiketi görünür" autocomplete="off">
-                        <button type="button" class="mic-btn" title="Sesle yaz (Türkçe)" aria-label="Sesle yaz (Türkçe)">@Html.Raw(MicIco)</button>
-                    </div>
-                </div>
-                <div class="field">
-                    <label for="expenseAmount">Tutar (₺)</label>
-                    <div class="unit-in">
-                        <input type="number" id="expenseAmount" name="Form.Amount" value="@Fmt.Input(f.Amount)" min="0" step="0.01" placeholder="0,00" required data-exp="amount">
-                        <span class="u">₺</span>
-                    </div>
-                    <span class="error" asp-validation-for="Form.Amount"></span>
-                </div>
-                <div class="field">
-                    <label for="expenseRate">Dolar kuru (₺)</label>
-                    <input type="number" id="expenseRate" name="Form.Rate" value="@Fmt.Input(f.Rate)" min="0.0001" step="0.0001" placeholder="Otomatik" data-exp="rate">
-                    <button type="button" class="btn secondary sm live-rate-btn" id="liveRateBtn" data-live-rate="expenseRate">⟳ Güncel kur</button>
-                    <span class="field-hint" id="expenseUsdPreview"></span>
-                </div>
-                <button type="submit" class="btn save-record" id="expenseSubmitBtn">@(editing ? "Kaydet" : "Gideri Ekle")</button>
-                @if (editing)
-                {
-                    <a class="btn secondary save-record" id="expenseCancelBtn" asp-action="Index">Vazgeç</a>
-                }
-            </form>
-        </div>
+        @* Her zaman yazılır (gizli/açık): ilk gider sayfa yenilenmeden eklenince de doğru kaybolur *@
+        <div class="empty-note" id="expenseEmptyNote" data-sync hidden="@(Model.Items.Count > 0)"><div class="es"><div class="es-t">Henüz gider yok</div><div class="es-s">“Gider Ekle” ile ilk giderinizi ekleyin; kategoriye göre raporlanır.</div></div></div>
     </div>
 </div>
 
 @section Scripts {
     <script>
-        (function () {
-            var $ = function (id) { return document.getElementById(id); };
-            var modal = $('expModal'), editing = @(editing ? "true" : "false");
-            function open() { modal.classList.add('open'); setTimeout(function () { $('expenseTag').focus(); }, 50); }
-            function close() { if (editing) { location.href = '@Url.Action("Index")'; return; } modal.classList.remove('open'); }
-            $('giderOpenBtn').addEventListener('click', open);
-            $('expModalX').addEventListener('click', close);
-            modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
-            document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && modal.classList.contains('open')) close(); });
-            if (location.hash === '#giderForm') open();
-            // Yeni etiket: "+" ile listeye ekle ve seç (kayıtta veritabanına eklenir)
-            $('expQuickTagBtn').addEventListener('click', function () {
-                var v = $('expQuickTag').value.trim(); if (!v) { $('expQuickTag').focus(); return; }
-                var sel = $('expenseTag'), o = document.createElement('option'); o.value = ''; o.textContent = v; o.selected = true; sel.appendChild(o);
-                $('expenseTagErr').hidden = true;
-            });
-            // Gider türü seçilmeden gönderilmesin (HTML'deki uyarı)
-            $('expenseForm').addEventListener('submit', function (e) {
-                if (!$('expenseTag').value && !$('expQuickTag').value.trim()) { e.preventDefault(); $('expenseTagErr').hidden = false; $('expenseTag').focus(); }
-            });
-            $('expenseTag').addEventListener('change', function () { $('expenseTagErr').hidden = true; if (this.value) $('expQuickTag').value = ''; });
-        })();
+        // Başka sayfadan "#giderForm" ile gelindiyse "Gider Ekle" penceresini aç
+        if (location.hash === '#giderForm') { var b = document.getElementById('giderOpenBtn'); if (b) b.click(); }
     </script>
 }

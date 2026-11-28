@@ -87,6 +87,7 @@ public class PaymentsController : Controller
         if (!ModelState.IsValid) { vm.Id = id; await FillAsync(vm, id); return View("Form", vm); }
         await _db.SaveChangesAsync();
         TempData["Ok"] = "Ödeme güncellendi.";
+        TempData["EditedRec"] = "payment:" + p.Id;   // dönülen sayfada bu ödemenin satırı kısa süre yeşil yanar
         if (!string.IsNullOrEmpty(vm.ReturnUrl) && Url.IsLocalUrl(vm.ReturnUrl)) return Redirect(vm.ReturnUrl);
         return RedirectToAction("Details", "Customers", new { id = p.CustomerId, tab = "cari" });
     }

@@ -171,17 +171,20 @@ window.mtHide = function (el, hide) {
                 end: function () { r.style.removeProperty('background-image'); }
             });
         });
-        // Mesaj: eski yerinde ve ölçüsünde kalır; satırla birlikte solar, sonra kapladığı yer kapanır
+        // Mesaj: ekranın üstünde balon (mvc.css .flash.ok); yer kaplamaz, satırla birlikte solup hafif yukarı kayar
         if (flash) {
-            flash.classList.add('pulsing');
-            parts.push({
-                frame: function (a) { flash.style.opacity = a; flash.style.transform = 'translateY(' + (-8 * (1 - a)).toFixed(1) + 'px)'; },
-                end: function () {
-                    flash.style.opacity = 0;
-                    flash.style.height = flash.offsetHeight + 'px'; void flash.offsetHeight;
-                    flash.classList.remove('pulsing'); flash.classList.add('out');
-                    setTimeout(function () { flash.remove(); }, 750);   // yer kapanınca (hareket azaltma açıksa da) kaldır
+            // "Ana Sayfaya Dön" butonuyla aynı hizada: yüksekliği butona eşitlenir, dikeyde ortalanır
+            var back = $$('.back-pair, #backHomeBtn, .panel-back').filter(function (b) { return b.offsetParent !== null; })[0];
+            if (back) {
+                var br = back.getBoundingClientRect();
+                if (br.bottom > 0 && br.top < window.innerHeight) {
+                    flash.style.minHeight = br.height + 'px';
+                    flash.style.top = Math.round(br.top + (br.height - flash.offsetHeight) / 2) + 'px';
                 }
+            }
+            parts.push({
+                frame: function (a) { flash.style.opacity = a; flash.style.transform = 'translate(-50%,' + (-8 * (1 - a)).toFixed(1) + 'px)'; },
+                end: function () { flash.remove(); }
             });
         }
         if (!parts.length) return;
@@ -1390,6 +1393,8 @@ window.mtHide = function (el, hide) {
         ajaxSave(f, m);
     });
     async function ajaxSave(f, m) {
+        // Bu sayfada yenilenecek alan yoksa (ör. Giderler) klasik gönderim: sayfa yenilenir
+        if (!document.querySelector('[data-sync]')) { HTMLFormElement.prototype.submit.call(f); return; }
         if (f.__saving) return; f.__saving = true;
         var btns = $$('button[type=submit], button:not([type])', f); btns.forEach(function (b) { b.disabled = true; });
         var saved = false;
@@ -1434,7 +1439,7 @@ window.mtHide = function (el, hide) {
                 sel.forEach(function (k) { var b = el.querySelector('.hsel-box[data-key="' + k + '"]'); if (b) b.checked = true; });
                 var any = el.querySelector('.hsel-box'); if (any) any.dispatchEvent(new Event('change', { bubbles: true }));
             } else {
-                el.innerHTML = n.innerHTML; el.className = n.className;
+                el.innerHTML = n.innerHTML; el.className = n.className; el.hidden = n.hidden;
                 if (n.dataset.goldValue !== undefined) el.dataset.goldValue = n.dataset.goldValue;
             }
         });

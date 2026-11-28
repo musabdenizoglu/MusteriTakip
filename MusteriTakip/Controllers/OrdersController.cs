@@ -119,7 +119,7 @@ public class OrdersController : Controller
         SyncCustomerCode(r.Customer, code);
         await _db.SaveChangesAsync();
         TempData["Ok"] = "Sipariş güncellendi.";
-        TempData["EditedRec"] = r.Id.ToString();   // dönülen sayfada bu siparişin satırı kısa süre yeşil yanar
+        TempData["EditedRec"] = "price:" + r.Id;   // dönülen sayfada bu siparişin satırı kısa süre yeşil yanar
         if (localReturn != null) return Redirect(localReturn);   // düzenlemenin açıldığı sayfaya dön
         return RedirectToAction("Details", "Customers", new { id = r.CustomerId });
     }
@@ -230,6 +230,8 @@ public class OrdersController : Controller
         if (!string.IsNullOrEmpty(vm.Kind)) r.Kind = vm.Kind == "Kalıp" ? IslemTuru.Kalip : IslemTuru.Altin;
         r.EditedAt = r.UpdatedAt = DateTime.UtcNow; // borç düzenlemesi soru sormadan en üste çıkar (önceki davranış)
         await _db.SaveChangesAsync();
+        TempData["Ok"] = "Borç güncellendi.";
+        TempData["EditedRec"] = "price:" + r.Id;   // dönülen sayfada bu borcun satırı kısa süre yeşil yanar
         if (!string.IsNullOrEmpty(vm.ReturnUrl) && Url.IsLocalUrl(vm.ReturnUrl)) return Redirect(vm.ReturnUrl);
         return RedirectToAction("Details", "Customers", new { id = r.CustomerId, tab = "cari" });
     }

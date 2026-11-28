@@ -1,22 +1,26 @@
 @model ExpensesVm
 @{
-    // Kasadan açılan "Gider Ekle" penceresi (HTML: #expModal). Giderler sayfasındaki pencereyle aynı alanlar;
+    // "Gider Ekle / Gideri Düzenle" penceresi (HTML: #expModal) — Giderler ve Kasa sayfalarından
     // [data-modal] ile sayfa değişmeden açılır, kayıttan sonra gelinen sayfaya (ReturnUrl) dönülür.
-    ViewData["Title"] = "Gider Ekle";
     var f = Model.Form;
-    var back = Url.Action("Index", "Kasa");
+    var editing = f.Id != null;
+    ViewData["Title"] = editing ? "Gideri Düzenle" : "Gider Ekle";
+    var ret = ViewData["ReturnUrl"] as string;
+    var back = !string.IsNullOrEmpty(ret) ? ret : Url.Action("Index", "Expenses");
     const string ExpIco = "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7l6 6 4-4 8 8\"></path><path d=\"M15 17h6v-6\"></path></svg>";
     const string MicIco = "<svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z\"/></svg>";
 }
 <div class="confirm-modal open" id="expModal" data-standalone data-back="@back">
     <div class="confirm-card exp-card" role="dialog" aria-modal="true" aria-labelledby="expModalTitle">
         <div class="pay-head">
-            <h2 id="expModalTitle"><span class="qa-i k-red">@Html.Raw(ExpIco)</span> Gider Ekle</h2>
+            <h2 id="expModalTitle"><span class="qa-i k-red">@Html.Raw(ExpIco)</span> @ViewData["Title"]</h2>
             <button type="button" class="x-close" aria-label="Kapat">✕</button>
         </div>
         <div id="expModalBody">
             <form method="post" asp-controller="Expenses" asp-action="Save" class="record-form" id="expenseForm" data-expense-form>
-                <input type="hidden" name="ReturnUrl" value="@ViewData["ReturnUrl"]" data-return-url />
+                <input type="hidden" name="ReturnUrl" value="@ret" data-return-url />
+                @if (editing)
+                {<input type="hidden" name="Form.Id" value="@f.Id" />}
                 <div class="field grow exptype-small">
                     <label for="expenseTag">Gider türü</label>
                     <select id="expenseTag" name="Form.ExpenseTagId">
@@ -55,7 +59,7 @@
                     <button type="button" class="btn secondary sm live-rate-btn" id="liveRateBtn" data-live-rate="expenseRate">⟳ Güncel kur</button>
                     <span class="field-hint" id="expenseUsdPreview"></span>
                 </div>
-                <button type="submit" class="btn save-record" id="expenseSubmitBtn">Gideri Ekle</button>
+                <button type="submit" class="btn save-record" id="expenseSubmitBtn">@(editing ? "Kaydet" : "Gideri Ekle")</button>
             </form>
         </div>
     </div>
